@@ -1,5 +1,8 @@
-from database.connection import DatabaseManager
 from config.database import db_settings
+from database.connection import DatabaseManager
+
+
+TABLE_NAME = "dbo.TRANSACTION_TEST"
 
 
 def get_test_connection_string() -> str:
@@ -9,23 +12,73 @@ def get_test_connection_string() -> str:
     )
 
 
+def create_test_table(test_db: DatabaseManager) -> None:
+    with test_db.transaction() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            f"""
+            IF OBJECT_ID('{TABLE_NAME}', 'U') IS NOT NULL
+                DROP TABLE {TABLE_NAME};
+
+            CREATE TABLE {TABLE_NAME}
+            (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                test_value VARCHAR(100) NOT NULL
+            );
+            """
+        )
+
+
+def drop_test_table(test_db: DatabaseManager) -> None:
+    with test_db.transaction() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            f"""
+            IF OBJECT_ID('{TABLE_NAME}', 'U') IS NOT NULL
+                DROP TABLE {TABLE_NAME};
+            """
+        )
+
+
 def test_commit():
     test_db = DatabaseManager(
         get_test_connection_string()
     )
 
-    with test_db.transaction() as conn:
-        cursor = conn.cursor()
+    create_test_table(test_db)
 
-        cursor.execute(
-            """
-            INSERT INTO dbo.TRANSACTION_TEST (test_value)
-            VALUES (?)
-            """,
-            "COMMIT_OK",
-        )
+    try:
+        with test_db.transaction() as conn:
+            cursor = conn.cursor()
 
-    print("COMMIT TEST: OK")
+            cursor.execute(
+                f"""
+                INSERT INTO {TABLE_NAME} (test_value)
+                VALUES (?)
+                """,
+                "COMMIT_OK",
+            )
+
+        with test_db.transaction() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(
+                f"""
+                SELECT COUNT(*)
+                FROM {TABLE_NAME}
+                WHERE test_value = ?
+                """,
+                "COMMIT_OK",
+            )
+
+            count = cursor.fetchone()[0]
+
+        assert count == 1
+
+    finally:
+        drop_test_table(test_db)
 
 
 def test_rollback():
@@ -33,61 +86,43 @@ def test_rollback():
         get_test_connection_string()
     )
 
+    create_test_table(test_db)
+
     try:
+        try:
+            with test_db.transaction() as conn:
+                cursor = conn.cursor()
+
+                cursor.execute(
+                    f"""
+                    INSERT INTO {TABLE_NAME} (test_value)
+                    VALUES (?)
+                    """,
+                    "ROLLBACK_TEST",
+                )
+
+                raise RuntimeError(
+                    "Simulated error for rollback test"
+                )
+
+        except RuntimeError:
+            pass
+
         with test_db.transaction() as conn:
             cursor = conn.cursor()
 
             cursor.execute(
-                """
-                INSERT INTO dbo.TRANSACTION_TEST (test_value)
-                VALUES (?)
+                f"""
+                SELECT COUNT(*)
+                FROM {TABLE_NAME}
+                WHERE test_value = ?
                 """,
                 "ROLLBACK_TEST",
             )
 
-            # Giả lập lỗi xảy ra giữa transaction
-            raise RuntimeError(
-                "Simulated transaction failure"
-            )
+            count = cursor.fetchone()[0]
 
-    except RuntimeError:
-        print("ROLLBACK TRIGGERED: OK")
-
-
-def show_results():
-    test_db = DatabaseManager(
-        get_test_connection_string()
-    )
-
-    conn = test_db.get_connection()
-
-    try:
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT id, test_value
-            FROM dbo.TRANSACTION_TEST
-            ORDER BY id
-            """
-        )
-
-        rows = cursor.fetchall()
-
-        print("\nDATA AFTER TEST:")
-
-        for row in rows:
-            print(row.id, row.test_value)
+        assert count == 0
 
     finally:
-        conn.close()
-
-
-def main():
-    test_commit()
-    test_rollback()
-    show_results()
-
-
-if __name__ == "__main__":
-    main()
+        drop_test_table(test_db)
