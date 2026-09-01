@@ -622,3 +622,4 @@ class StudentsPage(QWidget):
 
         if student_id is not None:
             self.student_requested.emit(student_id)
+            self._show_selected_profile()

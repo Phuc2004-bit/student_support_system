@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 from app_context import AppContext
 from ui.pages.dashboard_page import DashboardPage
 from ui.pages.placeholder_page import PlaceholderPage
+from ui.pages.students_page import StudentsPage
 from ui.widgets.page_stack import PageStack
 from ui.widgets.sidebar import Sidebar
 from ui.widgets.topbar import Topbar
@@ -165,8 +166,24 @@ class MainWindow(QMainWindow):
             dashboard_page,
         )
 
+        students_page = StudentsPage(
+            student_service=self.app_context.student_list_service,
+            academic_service=self.app_context.academic_service,
+            student_crud_service=self.app_context.student_service,
+            enrollment_service=self.app_context.enrollment_service,
+            student_profile_service=(
+                self.app_context.student_profile_service
+            ),
+            parent=self.page_stack,
+        )
+        self.pages["students"] = students_page
+        self.page_stack.register_page(
+            "students",
+            students_page,
+        )
+
         for key, title in self.PAGE_TITLES.items():
-            if key == "dashboard":
+            if key in {"dashboard", "students"}:
                 continue
 
             page = PlaceholderPage(
@@ -238,6 +255,14 @@ class MainWindow(QMainWindow):
 
         self.page_stack.show_page(key)
         self.sidebar.set_current_item(key)
+
+        if key == "students":
+            self._initialize_students()
+
+    def _initialize_students(self) -> None:
+        students_page = self.pages.get("students")
+        if isinstance(students_page, StudentsPage):
+            students_page.initialize_students()
 
     def request_logout(self) -> None:
         if self._logout_in_progress:

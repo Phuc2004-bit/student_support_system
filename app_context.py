@@ -8,6 +8,10 @@ from services.auth_service import AuthService
 from services.permission_service import PermissionService
 from services.academic_service import AcademicService
 from services.dashboard_contract import DashboardServiceContract
+from services.enrollment_service import EnrollmentService
+from services.student_list_service import StudentListService
+from services.student_profile_service import StudentProfileService
+from services.student_service import StudentService
 
 
 @dataclass
@@ -18,6 +22,10 @@ class AppContext:
     session: UserSession | None = None
     academic_service: AcademicService | None = None
     dashboard_service: DashboardServiceContract | None = None
+    student_list_service: StudentListService | None = None
+    student_service: StudentService | None = None
+    enrollment_service: EnrollmentService | None = None
+    student_profile_service: StudentProfileService | None = None
 
     @property
     def is_authenticated(self) -> bool:

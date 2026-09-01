@@ -48,3 +48,20 @@ def test_selected_student_can_open_profile_dialog():
     assert page._show_selected_profile() is True
     assert Dialog.last_kwargs["student_id"] == "student-1"
     assert isinstance(Dialog.last_kwargs["profile_service"], ProfileService)
+
+
+def test_double_click_opens_profile_for_activated_student():
+    app()
+    page = StudentsPage(
+        student_profile_service=ProfileService(),
+        profile_dialog_factory=Dialog,
+    )
+    page.set_students((StudentListItem(
+        "student-1", "HS001", "Nguyễn Văn A", date(2012, 1, 2),
+        "Nam", "6A1", 6, StudentStatus.ACTIVE,
+    ),))
+    page.table.selectRow(0)
+
+    page._on_row_activated(0, 0)
+
+    assert Dialog.last_kwargs["student_id"] == "student-1"

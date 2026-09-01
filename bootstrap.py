@@ -6,6 +6,10 @@ from services.auth_service import AuthService
 from services.academic_service import AcademicService
 from services.dashboard_service import DashboardService
 from services.permission_service import PermissionService
+from services.enrollment_service import EnrollmentService
+from services.student_list_service import StudentListService
+from services.student_profile_service import StudentProfileService
+from services.student_service import StudentService
 from app_context import AppContext
 
 
@@ -24,6 +28,10 @@ def build_app_context() -> AppContext:
     permission_service = PermissionService()
     academic_service = AcademicService(db=db)
     dashboard_service = DashboardService(db=db)
+    student_list_service = StudentListService(db=db)
+    student_service = StudentService(db=db)
+    enrollment_service = EnrollmentService(db=db)
+    student_profile_service = StudentProfileService(db=db)
 
     return AppContext(
         db=db,
@@ -31,4 +39,8 @@ def build_app_context() -> AppContext:
         permission_service=permission_service,
         academic_service=academic_service,
         dashboard_service=dashboard_service,
+        student_list_service=student_list_service,
+        student_service=student_service,
+        enrollment_service=enrollment_service,
+        student_profile_service=student_profile_service,
     )
