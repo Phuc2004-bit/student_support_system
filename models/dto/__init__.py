@@ -13,10 +13,18 @@ from models.dto.support_rule import SupportRule
 from models.dto.intervention import (
     Intervention,
     InterventionDetail,
+    InterventionHistoryItem,
     InterventionReviewItem,
 )
+from models.dto.student_profile import StudentProfileData
 from models.dto.dashboard import DashboardSummary
 from models.dto.user import User, UserSession
+from models.dto.import_dto import (
+    ScoreImportCommitResult,
+    ScoreImportPreview,
+    ScoreImportPreviewRow,
+    ScoreImportRawRow,
+)
 
 __all__ = [
     "Enrollment",
@@ -30,8 +38,14 @@ __all__ = [
     "SupportRule",
     "Intervention",
     "InterventionDetail",
+    "InterventionHistoryItem",
     "InterventionReviewItem",
+    "StudentProfileData",
     "DashboardSummary",
     "User",
     "UserSession",
+    "ScoreImportCommitResult",
+    "ScoreImportPreview",
+    "ScoreImportPreviewRow",
+    "ScoreImportRawRow",
 ]

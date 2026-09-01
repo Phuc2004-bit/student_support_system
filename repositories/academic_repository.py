@@ -101,6 +101,39 @@ class AcademicRepository:
 
         return cursor.fetchone()[0]
 
+    def list_school_years(
+        self,
+        connection: pyodbc.Connection,
+    ) -> list[tuple[int, str, date, date, bool]]:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                school_year_id,
+                year_name,
+                start_date,
+                end_date,
+                is_current
+            FROM dbo.SCHOOL_YEARS
+            ORDER BY
+                is_current DESC,
+                start_date DESC,
+                year_name DESC
+            """
+        )
+
+        return [
+            (
+                row.school_year_id,
+                row.year_name,
+                row.start_date,
+                row.end_date,
+                bool(row.is_current),
+            )
+            for row in cursor.fetchall()
+        ]
+
     def get_school_year_by_name(
         self,
         connection: pyodbc.Connection,
@@ -138,6 +171,50 @@ class AcademicRepository:
     # =====================================================
     # CLASSES
     # =====================================================
+
+    def get_class_by_id(
+        self,
+        connection: pyodbc.Connection,
+        class_id: int,
+    ):
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                c.class_id,
+                c.class_name,
+                c.grade_id,
+                g.grade_number,
+                c.school_year_id,
+                sy.year_name AS school_year_name,
+                c.homeroom_teacher,
+                c.status
+            FROM dbo.CLASSES c
+            INNER JOIN dbo.GRADES g
+                ON g.grade_id = c.grade_id
+            INNER JOIN dbo.SCHOOL_YEARS sy
+                ON sy.school_year_id = c.school_year_id
+            WHERE c.class_id = ?
+            """,
+            class_id,
+        )
+
+        row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        return (
+            row.class_id,
+            row.class_name,
+            row.grade_id,
+            row.grade_number,
+            row.school_year_id,
+            row.school_year_name,
+            row.homeroom_teacher,
+            row.status,
+        )
 
     def create_class(
         self,
@@ -208,6 +285,7 @@ class AcademicRepository:
             )
             for row in cursor.fetchall()
         ]
+    
 
     # =====================================================
     # SUBJECTS

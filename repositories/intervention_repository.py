@@ -4,6 +4,7 @@ import pyodbc
 
 from models.dto import (
     Intervention,
+    InterventionHistoryItem,
     InterventionReviewItem,
 )
 from models.enums import (
@@ -315,6 +316,38 @@ class InterventionRepository:
             for row in cursor.fetchall()
         ]
 
+    def list_by_student(
+        self,
+        connection: pyodbc.Connection,
+        student_id: str,
+    ) -> list[InterventionHistoryItem]:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                i.intervention_id, i.enrollment_id, e.student_id,
+                c.class_name, su.subject_name,
+                trigger_score.score AS trigger_score,
+                i.detected_date, i.status, i.support_method
+            FROM dbo.INTERVENTIONS i
+            INNER JOIN dbo.STUDENT_ENROLLMENTS e
+                ON e.enrollment_id = i.enrollment_id
+            INNER JOIN dbo.CLASSES c
+                ON c.class_id = e.class_id
+            INNER JOIN dbo.SUBJECTS su
+                ON su.subject_id = i.subject_id
+            INNER JOIN dbo.SCORES trigger_score
+                ON trigger_score.score_id = i.trigger_score_id
+            WHERE e.student_id = ?
+            ORDER BY i.detected_date, i.intervention_id
+            """,
+            student_id,
+        )
+        return [
+            self._map_history_item(row)
+            for row in cursor.fetchall()
+        ]
+
     @staticmethod
     def _map_intervention(row) -> Intervention:
         return Intervention(
@@ -342,4 +375,18 @@ class InterventionRepository:
             result=ReviewResult(row.result),
             notes=row.notes,
             created_at=row.created_at,
+        )
+
+    @staticmethod
+    def _map_history_item(row) -> InterventionHistoryItem:
+        return InterventionHistoryItem(
+            intervention_id=row.intervention_id,
+            enrollment_id=row.enrollment_id,
+            student_id=row.student_id,
+            class_name=row.class_name,
+            subject_name=row.subject_name,
+            trigger_score=Decimal(str(row.trigger_score)),
+            detected_date=row.detected_date,
+            status=InterventionStatus(row.status),
+            support_method=row.support_method,
         )

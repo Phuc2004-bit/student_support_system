@@ -57,3 +57,16 @@ class InterventionDetail:
     created_at: datetime
     updated_at: datetime
     reviews: tuple[InterventionReviewItem, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class InterventionHistoryItem:
+    intervention_id: int
+    enrollment_id: int
+    student_id: str
+    class_name: str
+    subject_name: str
+    trigger_score: Decimal
+    detected_date: date
+    status: InterventionStatus
+    support_method: str | None

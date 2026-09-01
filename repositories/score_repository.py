@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pyodbc
 
-from models.dto import Score
+from models.dto import Score, ScoreListItem
 
 
 class ScoreRepository:
@@ -164,6 +164,39 @@ class ScoreRepository:
             for row in cursor.fetchall()
         ]
 
+    def list_by_student(
+        self,
+        connection: pyodbc.Connection,
+        student_id: str,
+    ) -> list[ScoreListItem]:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                sc.score_id, sc.enrollment_id, e.student_id,
+                st.student_code, st.full_name, c.class_name,
+                su.subject_name, a.assessment_name, sc.score
+            FROM dbo.SCORES sc
+            INNER JOIN dbo.STUDENT_ENROLLMENTS e
+                ON e.enrollment_id = sc.enrollment_id
+            INNER JOIN dbo.STUDENTS st
+                ON st.student_id = e.student_id
+            INNER JOIN dbo.CLASSES c
+                ON c.class_id = e.class_id
+            INNER JOIN dbo.ASSESSMENTS a
+                ON a.assessment_id = sc.assessment_id
+            INNER JOIN dbo.SUBJECTS su
+                ON su.subject_id = a.subject_id
+            WHERE e.student_id = ?
+            ORDER BY a.assessment_date, sc.created_at, sc.score_id
+            """,
+            student_id,
+        )
+        return [
+            self._map_list_item(row)
+            for row in cursor.fetchall()
+        ]
+
     @staticmethod
     def _map_score(row) -> Score:
         return Score(
@@ -173,4 +206,18 @@ class ScoreRepository:
             score=Decimal(str(row.score)),
             created_at=row.created_at,
             updated_at=row.updated_at,
+        )
+
+    @staticmethod
+    def _map_list_item(row) -> ScoreListItem:
+        return ScoreListItem(
+            score_id=row.score_id,
+            enrollment_id=row.enrollment_id,
+            student_id=row.student_id,
+            student_code=row.student_code,
+            full_name=row.full_name,
+            class_name=row.class_name,
+            subject_name=row.subject_name,
+            assessment_name=row.assessment_name,
+            score=Decimal(str(row.score)),
         )

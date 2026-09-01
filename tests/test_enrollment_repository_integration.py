@@ -46,14 +46,6 @@ def cleanup(test_db: DatabaseManager) -> None:
 
         cursor.execute(
             """
-            DELETE FROM dbo.GRADES
-            WHERE grade_number = 10
-              AND grade_name = N'TEST_GRADE_10'
-            """
-        )
-
-        cursor.execute(
-            """
             DELETE FROM dbo.SCHOOL_YEARS
             WHERE year_name = 'TEST_2026_2027'
             """
@@ -71,21 +63,35 @@ def test_enrollment_repository_flow():
     with test_db.transaction() as connection:
         cursor = connection.cursor()
 
+        # grade_number là UNIQUE; GRADES là dữ liệu nền dùng chung.
+        # Tái sử dụng Khối 10 nếu đã tồn tại.
         cursor.execute(
             """
-            INSERT INTO dbo.GRADES
-            (
-                grade_number,
-                grade_name
-            )
-            OUTPUT INSERTED.grade_id
-            VALUES (?, ?)
+            SELECT grade_id
+            FROM dbo.GRADES
+            WHERE grade_number = ?
             """,
             10,
-            "TEST_GRADE_10",
         )
+        grade_row = cursor.fetchone()
 
-        grade_id = cursor.fetchone()[0]
+        if grade_row is not None:
+            grade_id = grade_row[0]
+        else:
+            cursor.execute(
+                """
+                INSERT INTO dbo.GRADES
+                (
+                    grade_number,
+                    grade_name
+                )
+                OUTPUT INSERTED.grade_id
+                VALUES (?, ?)
+                """,
+                10,
+                "Khối 10",
+            )
+            grade_id = cursor.fetchone()[0]
 
         cursor.execute(
             """
