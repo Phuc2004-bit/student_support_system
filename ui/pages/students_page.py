@@ -24,8 +24,12 @@ from services.student_contract import (
     StudentListServiceContract,
     StudentServiceContract,
 )
+from services.student_profile_contract import (
+    StudentProfileServiceContract,
+)
 from ui.dialogs.enrollment_dialog import EnrollmentDialog
 from ui.dialogs.student_form_dialog import StudentFormDialog
+from ui.dialogs.student_profile_dialog import StudentProfileDialog
 from ui.widgets.current_enrollment_widget import (
     CurrentEnrollmentWidget,
 )
@@ -72,6 +76,8 @@ class StudentsPage(QWidget):
         dialog_factory=StudentFormDialog,
         enrollment_service: EnrollmentServiceContract | None = None,
         enrollment_dialog_factory=EnrollmentDialog,
+        student_profile_service: StudentProfileServiceContract | None = None,
+        profile_dialog_factory=StudentProfileDialog,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -82,6 +88,8 @@ class StudentsPage(QWidget):
         self.dialog_factory = dialog_factory
         self.enrollment_service = enrollment_service
         self.enrollment_dialog_factory = enrollment_dialog_factory
+        self.student_profile_service = student_profile_service
+        self.profile_dialog_factory = profile_dialog_factory
 
         self._items: tuple[StudentListItem, ...] = ()
         self._last_filter = StudentFilter()
@@ -133,11 +141,14 @@ class StudentsPage(QWidget):
 
         self.refresh_button = QPushButton("Làm mới", self)
         self.edit_button = QPushButton("Sửa học sinh", self)
+        self.profile_button = QPushButton("Xem hồ sơ", self)
         self.add_button = QPushButton("+ Thêm học sinh", self)
         self.edit_button.setEnabled(False)
+        self.profile_button.setEnabled(False)
 
         row.addWidget(self.refresh_button)
         row.addWidget(self.edit_button)
+        row.addWidget(self.profile_button)
         row.addWidget(self.add_button)
         root.addLayout(row)
 
@@ -196,6 +207,9 @@ class StudentsPage(QWidget):
         )
         self.edit_button.clicked.connect(
             self._edit_selected_student
+        )
+        self.profile_button.clicked.connect(
+            self._show_selected_profile
         )
         self.refresh_button.clicked.connect(
             self.refresh_students
@@ -319,6 +333,10 @@ class StudentsPage(QWidget):
     def _update_action_state(self) -> None:
         self.edit_button.setEnabled(
             self.selected_student_id() is not None
+        )
+        self.profile_button.setEnabled(
+            self.selected_student_id() is not None
+            and self.student_profile_service is not None
         )
 
     def _clear_current_enrollment(self) -> None:
@@ -550,6 +568,33 @@ class StudentsPage(QWidget):
             "Thành công",
             "Đã cập nhật học sinh.",
         )
+        return True
+
+    def _show_selected_profile(self) -> bool:
+        student_id = self.selected_student_id()
+
+        if (
+            student_id is None
+            or self.student_profile_service is None
+        ):
+            return False
+
+        dialog = self.profile_dialog_factory(
+            student_id=student_id,
+            profile_service=self.student_profile_service,
+            parent=self,
+        )
+
+        try:
+            dialog.load_profile()
+        except Exception as exc:
+            self._show_error(
+                "Không thể tải hồ sơ học sinh",
+                exc,
+            )
+            return False
+
+        dialog.exec()
         return True
 
     @staticmethod
