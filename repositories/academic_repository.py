@@ -462,6 +462,55 @@ class AcademicRepository:
 
         return self._map_assessment(row)
 
+    def list_assessments(
+        self,
+        connection: pyodbc.Connection,
+        school_year_id: int,
+        subject_id: int | None = None,
+        semester: int | None = None,
+        status: AssessmentStatus | None = None,
+    ) -> list[Assessment]:
+        conditions = ["school_year_id = ?"]
+        parameters: list[object] = [school_year_id]
+
+        if subject_id is not None:
+            conditions.append("subject_id = ?")
+            parameters.append(subject_id)
+
+        if semester is not None:
+            conditions.append("semester = ?")
+            parameters.append(semester)
+
+        if status is not None:
+            conditions.append("status = ?")
+            parameters.append(status.value)
+
+        sql = f"""
+            SELECT
+                assessment_id,
+                subject_id,
+                school_year_id,
+                assessment_name,
+                semester,
+                assessment_type,
+                assessment_date,
+                status,
+                created_at
+            FROM dbo.ASSESSMENTS
+            WHERE {' AND '.join(conditions)}
+            ORDER BY
+                assessment_date,
+                assessment_id
+        """
+
+        cursor = connection.cursor()
+        cursor.execute(sql, *parameters)
+
+        return [
+            self._map_assessment(row)
+            for row in cursor.fetchall()
+        ]
+
     @staticmethod
     def _map_assessment(row) -> Assessment:
         return Assessment(

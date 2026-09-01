@@ -3,6 +3,7 @@ from datetime import date
 from database.connection import DatabaseManager
 from exceptions import DuplicateError, ValidationError
 from models.dto import Assessment
+from models.enums import AssessmentStatus
 from repositories import AcademicRepository
 
 
@@ -281,10 +282,10 @@ class AcademicService:
         self,
         assessment_id: int,
     ) -> Assessment:
-        if assessment_id <= 0:
-            raise ValidationError(
-                "assessment_id không hợp lệ."
-            )
+        self._validate_positive_id(
+            "assessment_id",
+            assessment_id,
+        )
 
         with self.db.transaction() as connection:
             assessment = self.repository.get_assessment_by_id(
@@ -298,3 +299,64 @@ class AcademicService:
                 )
 
             return assessment
+
+    def list_assessments(
+        self,
+        school_year_id: int,
+        subject_id: int | None = None,
+        semester: int | None = None,
+        status: AssessmentStatus | None = None,
+    ) -> list[Assessment]:
+        self._validate_positive_id(
+            "school_year_id",
+            school_year_id,
+        )
+
+        if subject_id is not None:
+            self._validate_positive_id(
+                "subject_id",
+                subject_id,
+            )
+
+        if (
+            semester is not None
+            and (
+                isinstance(semester, bool)
+                or not isinstance(semester, int)
+                or semester not in (1, 2)
+            )
+        ):
+            raise ValidationError(
+                "semester chỉ được là 1 hoặc 2."
+            )
+
+        if status is not None and not isinstance(
+            status,
+            AssessmentStatus,
+        ):
+            raise ValidationError(
+                "status assessment không hợp lệ."
+            )
+
+        with self.db.transaction() as connection:
+            return self.repository.list_assessments(
+                connection,
+                school_year_id,
+                subject_id,
+                semester,
+                status,
+            )
+
+    @staticmethod
+    def _validate_positive_id(
+        field_name: str,
+        value: int,
+    ) -> None:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value <= 0
+        ):
+            raise ValidationError(
+                f"{field_name} không hợp lệ."
+            )
