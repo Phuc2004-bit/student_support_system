@@ -33,7 +33,14 @@ class ReportRepository:
                 trigger_score.score AS trigger_score,
                 latest_review.review_date AS latest_review_date,
                 latest_review.review_score AS latest_review_score,
-                latest_review.result AS latest_review_result
+                latest_review.result AS latest_review_result,
+                e.student_id,
+                i.enrollment_id,
+                c.grade_id,
+                c.class_id,
+                i.subject_id,
+                i.responsible_user_id,
+                responsible_user.full_name AS responsible_user_name
             FROM dbo.INTERVENTIONS AS i
             INNER JOIN dbo.STUDENT_ENROLLMENTS AS e
                 ON e.enrollment_id = i.enrollment_id
@@ -47,6 +54,8 @@ class ReportRepository:
                 ON sub.subject_id = i.subject_id
             INNER JOIN dbo.SCORES AS trigger_score
                 ON trigger_score.score_id = i.trigger_score_id
+            LEFT JOIN dbo.USERS AS responsible_user
+                ON responsible_user.user_id = i.responsible_user_id
             OUTER APPLY
             (
                 SELECT TOP (1)
@@ -187,4 +196,13 @@ class ReportRepository:
             latest_review_date=row[11],
             latest_review_score=row[12],
             latest_review_result=row[13],
+            student_id=str(row[14]),
+            enrollment_id=int(row[15]),
+            grade_id=int(row[16]),
+            class_id=int(row[17]),
+            subject_id=int(row[18]),
+            responsible_user_id=(
+                int(row[19]) if row[19] is not None else None
+            ),
+            responsible_user_name=row[20],
         )

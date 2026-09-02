@@ -21,6 +21,13 @@ class SupportReportRow:
     latest_review_date: date | None = None
     latest_review_score: Decimal | None = None
     latest_review_result: str | None = None
+    student_id: str | None = None
+    enrollment_id: int | None = None
+    grade_id: int | None = None
+    class_id: int | None = None
+    subject_id: int | None = None
+    responsible_user_id: int | None = None
+    responsible_user_name: str | None = None
 
 
 @dataclass(frozen=True)
