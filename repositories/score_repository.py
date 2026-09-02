@@ -2,7 +2,8 @@ from decimal import Decimal
 
 import pyodbc
 
-from models.dto import Score, ScoreListItem
+from models.dto import Score, ScoreListItem, ScoreRosterItem
+from models.enums import EnrollmentStatus
 
 
 class ScoreRepository:
@@ -197,6 +198,51 @@ class ScoreRepository:
             for row in cursor.fetchall()
         ]
 
+    def list_by_class_assessment(
+        self,
+        connection: pyodbc.Connection,
+        class_id: int,
+        school_year_id: int,
+        assessment_id: int,
+        enrollment_status: EnrollmentStatus,
+    ) -> list[ScoreRosterItem]:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                e.enrollment_id,
+                e.student_id,
+                st.student_code,
+                st.full_name,
+                sc.assessment_id,
+                sc.score_id,
+                sc.score
+            FROM dbo.STUDENT_ENROLLMENTS e
+            INNER JOIN dbo.STUDENTS st
+                ON st.student_id = e.student_id
+            INNER JOIN dbo.CLASSES c
+                ON c.class_id = e.class_id
+            LEFT JOIN dbo.SCORES sc
+                ON sc.enrollment_id = e.enrollment_id
+               AND sc.assessment_id = ?
+            WHERE e.class_id = ?
+              AND c.school_year_id = ?
+              AND e.status = ?
+            ORDER BY
+                st.full_name,
+                st.student_code,
+                e.enrollment_id
+            """,
+            assessment_id,
+            class_id,
+            school_year_id,
+            enrollment_status.value,
+        )
+        return [
+            self._map_roster_item(row, assessment_id)
+            for row in cursor.fetchall()
+        ]
+
     @staticmethod
     def _map_score(row) -> Score:
         return Score(
@@ -220,4 +266,27 @@ class ScoreRepository:
             subject_name=row.subject_name,
             assessment_name=row.assessment_name,
             score=Decimal(str(row.score)),
+        )
+
+    @staticmethod
+    def _map_roster_item(
+        row,
+        assessment_id: int,
+    ) -> ScoreRosterItem:
+        return ScoreRosterItem(
+            enrollment_id=row.enrollment_id,
+            student_id=row.student_id,
+            student_code=row.student_code,
+            full_name=row.full_name,
+            assessment_id=(
+                row.assessment_id
+                if row.assessment_id is not None
+                else assessment_id
+            ),
+            score_id=row.score_id,
+            score=(
+                Decimal(str(row.score))
+                if row.score is not None
+                else None
+            ),
         )

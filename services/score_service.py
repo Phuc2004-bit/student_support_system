@@ -8,7 +8,8 @@ from exceptions import (
     DuplicateError,
     ValidationError,
 )
-from models.dto import Score, ScoreCreateData
+from models.dto import Score, ScoreCreateData, ScoreRosterItem
+from models.enums import EnrollmentStatus
 from repositories import (
     AcademicRepository,
     EnrollmentRepository,
@@ -304,6 +305,46 @@ class ScoreService:
     # =====================================================
     # READ
     # =====================================================
+
+    def list_score_roster(
+        self,
+        class_id: int,
+        school_year_id: int,
+        subject_id: int,
+        assessment_id: int,
+    ) -> list[ScoreRosterItem]:
+        for field_name, value in (
+            ("class_id", class_id),
+            ("school_year_id", school_year_id),
+            ("subject_id", subject_id),
+            ("assessment_id", assessment_id),
+        ):
+            self._validate_identifier(field_name, value)
+
+        with self.db.transaction() as connection:
+            assessment = self.academic_repository.get_assessment_by_id(
+                connection,
+                assessment_id,
+            )
+            if assessment is None:
+                raise ValidationError(
+                    "Không tìm thấy bài đánh giá."
+                )
+            if (
+                assessment.school_year_id != school_year_id
+                or assessment.subject_id != subject_id
+            ):
+                raise ValidationError(
+                    "Bài đánh giá không thuộc năm học và môn đã chọn."
+                )
+
+            return self.score_repository.list_by_class_assessment(
+                connection,
+                class_id,
+                school_year_id,
+                assessment_id,
+                EnrollmentStatus.ACTIVE,
+            )
 
     def get_score(
         self,

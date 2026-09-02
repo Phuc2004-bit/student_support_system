@@ -11,6 +11,17 @@ class ScoreCreateData:
 
 
 @dataclass(frozen=True, slots=True)
+class ScoreRosterItem:
+    enrollment_id: int
+    student_id: str
+    student_code: str
+    full_name: str
+    assessment_id: int
+    score_id: int | None
+    score: Decimal | None
+
+
+@dataclass(frozen=True, slots=True)
 class Score:
     score_id: int
     enrollment_id: int

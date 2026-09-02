@@ -211,6 +211,15 @@ def test_manual_score_roster_and_batch_are_integrated_without_detection():
         )
 
         score_service = ScoreService(db)
+        initial_roster = score_service.list_score_roster(
+            class_id,
+            school_year_id,
+            subject_id,
+            assessment_ok.assessment_id,
+        )
+        assert len(initial_roster) == 2
+        assert all(item.score_id is None for item in initial_roster)
+
         created = score_service.create_scores(
             (
                 ScoreCreateData(
@@ -229,6 +238,20 @@ def test_manual_score_roster_and_batch_are_integrated_without_detection():
             Decimal("6.25"),
             Decimal("8.00"),
         ]
+        saved_roster = score_service.list_score_roster(
+            class_id,
+            school_year_id,
+            subject_id,
+            assessment_ok.assessment_id,
+        )
+        assert {
+            item.enrollment_id: item.score
+            for item in saved_roster
+        } == {
+            enrollments[0].enrollment_id: Decimal("6.25"),
+            enrollments[1].enrollment_id: Decimal("8.00"),
+        }
+        assert all(item.score_id is not None for item in saved_roster)
 
         score_service.create_score(
             enrollments[1].enrollment_id,
@@ -271,10 +294,38 @@ def test_manual_score_roster_and_batch_are_integrated_without_detection():
                 enrollments[0].enrollment_id,
                 enrollments[1].enrollment_id,
             ).fetchone()[0]
+            score_count_before_read = connection.cursor().execute(
+                """
+                SELECT COUNT(*)
+                FROM dbo.SCORES
+                WHERE enrollment_id IN (?, ?)
+                """,
+                enrollments[0].enrollment_id,
+                enrollments[1].enrollment_id,
+            ).fetchone()[0]
 
         assert rolled_back is None
         assert preserved is not None
         assert preserved.score == Decimal("7.00")
         assert intervention_count == 0
+
+        refreshed_roster = score_service.list_score_roster(
+            class_id,
+            school_year_id,
+            subject_id,
+            assessment_ok.assessment_id,
+        )
+        assert refreshed_roster == saved_roster
+        with db.transaction() as connection:
+            score_count_after_read = connection.cursor().execute(
+                """
+                SELECT COUNT(*)
+                FROM dbo.SCORES
+                WHERE enrollment_id IN (?, ?)
+                """,
+                enrollments[0].enrollment_id,
+                enrollments[1].enrollment_id,
+            ).fetchone()[0]
+        assert score_count_after_read == score_count_before_read
     finally:
         cleanup(db)

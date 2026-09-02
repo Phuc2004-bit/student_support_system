@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from models.dto.enrollment import EnrollmentListItem
-from models.dto.score import ScoreCreateData
+from models.dto.score import ScoreCreateData, ScoreRosterItem
 from services.enrollment_contract import EnrollmentServiceContract
 from services.score_contract import (
     ScoreServiceContract as ScoreWriterContract,
@@ -44,6 +44,7 @@ class ScoresPage(QWidget):
         "Mã học sinh",
         "Họ và tên",
         "Điểm",
+        "Trạng thái",
     )
 
     def __init__(
@@ -58,6 +59,7 @@ class ScoresPage(QWidget):
         self.enrollment_service = enrollment_service
         self.score_service = score_service
         self._enrollments: tuple[EnrollmentListItem, ...] = ()
+        self._score_rows: tuple[ScoreRosterItem, ...] = ()
         self._saved_enrollment_ids: set[int] = set()
         self.setObjectName("scoresPage")
         self._build_ui()
@@ -162,10 +164,22 @@ class ScoresPage(QWidget):
     def enrollments(self) -> tuple[EnrollmentListItem, ...]:
         return self._enrollments
 
+    @property
+    def score_rows(self) -> tuple[ScoreRosterItem, ...]:
+        return self._score_rows
+
     def enrollment_id_at_row(self, row: int) -> int | None:
         if row < 0 or row >= self.score_table.rowCount():
             return None
         item = self.score_table.item(row, 0)
+        if item is None:
+            return None
+        return item.data(Qt.ItemDataRole.UserRole)
+
+    def score_id_at_row(self, row: int) -> int | None:
+        if row < 0 or row >= self.score_table.rowCount():
+            return None
+        item = self.score_table.item(row, 3)
         if item is None:
             return None
         return item.data(Qt.ItemDataRole.UserRole)
@@ -178,7 +192,7 @@ class ScoresPage(QWidget):
             self.context_status_label.setText(
                 "Đã chọn đầy đủ ngữ cảnh."
             )
-            if self.enrollment_service is not None:
+            if self._can_read_scores():
                 self.load_students()
             return
 
@@ -192,19 +206,34 @@ class ScoresPage(QWidget):
 
     def load_students(self) -> bool:
         context = self.current_context()
-        if not context.is_complete or self.enrollment_service is None:
+        if not context.is_complete or not self._can_read_scores():
             self._clear_students(
                 "Chọn đầy đủ ngữ cảnh để tải danh sách học sinh."
             )
             return False
 
         try:
-            enrollments = (
-                self.enrollment_service.list_class_enrollments(
+            reader = getattr(
+                self.score_service,
+                "list_score_roster",
+                None,
+            )
+            if callable(reader):
+                rows = reader(
                     context.class_id,
                     context.school_year_id,
+                    context.subject_id,
+                    context.assessment_id,
                 )
-            )
+                self.set_score_rows(rows)
+            else:
+                enrollments = (
+                    self.enrollment_service.list_class_enrollments(
+                        context.class_id,
+                        context.school_year_id,
+                    )
+                )
+                self.set_students(enrollments)
         except Exception as exc:
             self._clear_students(
                 "Không thể tải danh sách học sinh."
@@ -214,10 +243,9 @@ class ScoresPage(QWidget):
             )
             return False
 
-        self.set_students(enrollments)
-        if self._enrollments:
+        if self._score_rows:
             self.context_status_label.setText(
-                f"{len(self._enrollments)} học sinh trong lớp."
+                f"{len(self._score_rows)} học sinh trong lớp."
             )
         else:
             self.context_status_label.setText(
@@ -230,34 +258,86 @@ class ScoresPage(QWidget):
         enrollments: Iterable[EnrollmentListItem],
     ) -> None:
         self._enrollments = tuple(enrollments)
+        self._render_score_rows(
+            tuple(
+                ScoreRosterItem(
+                    enrollment_id=item.enrollment_id,
+                    student_id=item.student_id,
+                    student_code=item.student_code,
+                    full_name=item.full_name,
+                    assessment_id=(
+                        self.current_context().assessment_id or 0
+                    ),
+                    score_id=None,
+                    score=None,
+                )
+                for item in self._enrollments
+            )
+        )
+
+    def set_score_rows(
+        self,
+        rows: Iterable[ScoreRosterItem],
+    ) -> None:
+        self._enrollments = ()
+        self._render_score_rows(tuple(rows))
+
+    def _render_score_rows(
+        self,
+        rows: tuple[ScoreRosterItem, ...],
+    ) -> None:
+        self._score_rows = rows
         self._saved_enrollment_ids.clear()
 
         self.score_table.blockSignals(True)
-        self.score_table.setRowCount(len(self._enrollments))
+        self.score_table.setRowCount(len(self._score_rows))
 
-        for row, enrollment in enumerate(self._enrollments):
+        for row, item in enumerate(self._score_rows):
             number_item = QTableWidgetItem(str(row + 1))
             number_item.setData(
                 Qt.ItemDataRole.UserRole,
-                enrollment.enrollment_id,
+                item.enrollment_id,
             )
-            code_item = QTableWidgetItem(enrollment.student_code)
-            name_item = QTableWidgetItem(enrollment.full_name)
-            score_item = QTableWidgetItem("")
+            code_item = QTableWidgetItem(item.student_code)
+            name_item = QTableWidgetItem(item.full_name)
+            score_item = QTableWidgetItem(
+                str(item.score) if item.score is not None else ""
+            )
+            score_item.setData(
+                Qt.ItemDataRole.UserRole,
+                item.score_id,
+            )
+            status_item = QTableWidgetItem(
+                "Đã có điểm"
+                if item.score_id is not None
+                else "Chưa có điểm"
+            )
 
-            for item in (number_item, code_item, name_item):
-                item.setFlags(
-                    item.flags()
+            for read_only_item in (
+                number_item,
+                code_item,
+                name_item,
+                status_item,
+            ):
+                read_only_item.setFlags(
+                    read_only_item.flags()
                     & ~Qt.ItemFlag.ItemIsEditable
                 )
+            if item.score_id is not None:
+                score_item.setFlags(
+                    score_item.flags()
+                    & ~Qt.ItemFlag.ItemIsEditable
+                )
+                self._saved_enrollment_ids.add(item.enrollment_id)
 
             self.score_table.setItem(row, 0, number_item)
             self.score_table.setItem(row, 1, code_item)
             self.score_table.setItem(row, 2, name_item)
             self.score_table.setItem(row, 3, score_item)
+            self.score_table.setItem(row, 4, status_item)
 
         self.score_table.blockSignals(False)
-        has_students = bool(self._enrollments)
+        has_students = bool(self._score_rows)
         self.placeholder_label.setVisible(not has_students)
         self.score_table.setVisible(has_students)
         if not has_students:
@@ -271,7 +351,7 @@ class ScoresPage(QWidget):
         if (
             not context.is_complete
             or self.score_service is None
-            or not self._enrollments
+            or not self._score_rows
         ):
             self._update_save_state()
             return False
@@ -300,23 +380,39 @@ class ScoresPage(QWidget):
             entry.enrollment_id
             for entry in entries
         }
-        self._saved_enrollment_ids.update(saved_ids)
-
-        self.score_table.blockSignals(True)
-        for row in range(self.score_table.rowCount()):
-            enrollment_id = self.enrollment_id_at_row(row)
-            if enrollment_id not in saved_ids:
-                continue
-            score_item = self.score_table.item(row, 3)
-            score_item.setFlags(
-                score_item.flags()
-                & ~Qt.ItemFlag.ItemIsEditable
-            )
-        self.score_table.blockSignals(False)
-
-        self.context_status_label.setText(
-            f"Đã lưu {len(entries)} điểm."
+        reader = getattr(
+            self.score_service,
+            "list_score_roster",
+            None,
         )
+        refreshed = True
+        if callable(reader):
+            refreshed = self.load_students()
+        else:
+            self._saved_enrollment_ids.update(saved_ids)
+            self.score_table.blockSignals(True)
+            for row in range(self.score_table.rowCount()):
+                enrollment_id = self.enrollment_id_at_row(row)
+                if enrollment_id not in saved_ids:
+                    continue
+                score_item = self.score_table.item(row, 3)
+                score_item.setFlags(
+                    score_item.flags()
+                    & ~Qt.ItemFlag.ItemIsEditable
+                )
+                self.score_table.item(row, 4).setText(
+                    "Đã có điểm"
+                )
+            self.score_table.blockSignals(False)
+
+        if refreshed:
+            self.context_status_label.setText(
+                f"Đã lưu {len(entries)} điểm."
+            )
+        else:
+            self.context_status_label.setText(
+                f"Đã lưu {len(entries)} điểm nhưng không thể tải lại bảng."
+            )
         self.scores_saved.emit(len(entries))
         self._update_save_state()
         return True
@@ -362,7 +458,7 @@ class ScoresPage(QWidget):
         if (
             context.is_complete
             and self.score_service is not None
-            and self._enrollments
+            and self._score_rows
         ):
             can_save = any(
                 self.enrollment_id_at_row(row)
@@ -374,6 +470,7 @@ class ScoresPage(QWidget):
 
     def _clear_students(self, message: str) -> None:
         self._enrollments = ()
+        self._score_rows = ()
         self._saved_enrollment_ids.clear()
         self.score_table.blockSignals(True)
         self.score_table.setRowCount(0)
@@ -384,6 +481,18 @@ class ScoresPage(QWidget):
             message
         )
         self.save_button.setEnabled(False)
+
+    def _can_read_scores(self) -> bool:
+        return (
+            callable(
+                getattr(
+                    self.score_service,
+                    "list_score_roster",
+                    None,
+                )
+            )
+            or self.enrollment_service is not None
+        )
 
     @staticmethod
     def _error_message(exc: Exception) -> str:
