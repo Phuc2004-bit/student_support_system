@@ -33,7 +33,22 @@ def save_score_batch(
     service: ScoreWriterContract,
     entries: tuple[ScoreCreateData, ...],
 ):
+    detection_writer = getattr(
+        service,
+        "create_scores_and_detect",
+        None,
+    )
+    if callable(detection_writer):
+        return detection_writer(entries)
     return service.create_scores(entries)
+
+
+def detected_support_count(save_result) -> int:
+    return getattr(
+        save_result,
+        "detected_intervention_count",
+        0,
+    )
 
 
 class ScoresPage(QWidget):
@@ -463,7 +478,7 @@ class ScoresPage(QWidget):
             return False
 
         try:
-            save_score_batch(self.score_service, entries)
+            save_result = save_score_batch(self.score_service, entries)
         except Exception as exc:
             self.context_status_label.setText(
                 self._error_message(exc)
@@ -500,9 +515,14 @@ class ScoresPage(QWidget):
             self.score_table.blockSignals(False)
 
         if refreshed:
-            self.context_status_label.setText(
-                f"Đã lưu {len(entries)} điểm."
-            )
+            detected_count = detected_support_count(save_result)
+            message = f"Đã lưu {len(entries)} điểm."
+            if detected_count:
+                message += (
+                    f" Có {detected_count} học sinh "
+                    "được phát hiện cần bổ trợ."
+                )
+            self.context_status_label.setText(message)
         else:
             self.context_status_label.setText(
                 f"Đã lưu {len(entries)} điểm nhưng không thể tải lại bảng."

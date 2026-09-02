@@ -2,7 +2,12 @@ from collections.abc import Iterable
 from decimal import Decimal
 from typing import Protocol
 
-from models.dto.score import Score, ScoreCreateData, ScoreRosterItem
+from models.dto.score import (
+    Score,
+    ScoreBatchDetectionResult,
+    ScoreCreateData,
+    ScoreRosterItem,
+)
 
 
 class ScoreServiceContract(Protocol):
@@ -18,6 +23,20 @@ class ScoreServiceContract(Protocol):
         self,
         entries: Iterable[ScoreCreateData],
     ) -> list[Score]:
+        ...
+
+    def create_score_and_detect(
+        self,
+        enrollment_id: int,
+        assessment_id: int,
+        score_value: Decimal,
+    ):
+        ...
+
+    def create_scores_and_detect(
+        self,
+        entries: Iterable[ScoreCreateData],
+    ) -> ScoreBatchDetectionResult:
         ...
 
     def list_score_roster(

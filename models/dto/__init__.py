@@ -10,6 +10,7 @@ from models.dto.student import (
 from models.dto.assessment import Assessment
 from models.dto.score import (
     Score,
+    ScoreBatchDetectionResult,
     ScoreCreateData,
     ScoreListItem,
     ScoreRosterItem,
@@ -39,6 +40,7 @@ __all__ = [
     "StudentUpdateData",
     "Assessment",
     "Score",
+    "ScoreBatchDetectionResult",
     "ScoreCreateData",
     "ScoreListItem",
     "ScoreRosterItem",

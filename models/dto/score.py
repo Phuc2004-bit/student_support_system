@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from models.dto.intervention import Intervention
+
 
 @dataclass(frozen=True, slots=True)
 class ScoreCreateData:
@@ -29,6 +31,16 @@ class Score:
     score: Decimal
     created_at: datetime
     updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ScoreBatchDetectionResult:
+    scores: tuple[Score, ...]
+    interventions: tuple[Intervention, ...]
+
+    @property
+    def detected_intervention_count(self) -> int:
+        return len(self.interventions)
 
 
 @dataclass(frozen=True, slots=True)

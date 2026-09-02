@@ -9,7 +9,12 @@ from exceptions import (
     DuplicateError,
     ValidationError,
 )
-from models.dto import Score, ScoreCreateData, ScoreRosterItem
+from models.dto import (
+    Score,
+    ScoreBatchDetectionResult,
+    ScoreCreateData,
+    ScoreRosterItem,
+)
 from models.enums import EnrollmentStatus
 from repositories import (
     AcademicRepository,
@@ -96,32 +101,7 @@ class ScoreService:
         self,
         entries: Iterable[ScoreCreateData],
     ) -> list[Score]:
-        try:
-            batch = tuple(entries)
-        except TypeError as exc:
-            raise ValidationError(
-                "Danh sách điểm không hợp lệ."
-            ) from exc
-
-        if not batch:
-            raise ValidationError(
-                "Danh sách điểm không được để trống."
-            )
-
-        normalized: list[ScoreCreateData] = []
-        seen_keys: set[tuple[int, int]] = set()
-        for entry in batch:
-            normalized_entry = self._normalize_create_data(entry)
-            key = (
-                normalized_entry.enrollment_id,
-                normalized_entry.assessment_id,
-            )
-            if key in seen_keys:
-                raise DuplicateError(
-                    "Batch có enrollment và bài đánh giá bị trùng."
-                )
-            seen_keys.add(key)
-            normalized.append(normalized_entry)
+        normalized = self._normalize_batch(entries)
 
         with self.db.transaction() as connection:
             return [
@@ -303,6 +283,40 @@ class ScoreService:
 
             return score, intervention
 
+    def create_scores_and_detect(
+        self,
+        entries: Iterable[ScoreCreateData],
+    ) -> ScoreBatchDetectionResult:
+        normalized = self._normalize_batch(entries)
+
+        with self.db.transaction() as connection:
+            support_service = SupportService(
+                db=self.db,
+                score_repository=self.score_repository,
+                academic_repository=self.academic_repository,
+                rule_repository=self.rule_repository,
+                intervention_repository=self.intervention_repository,
+            )
+            scores: list[Score] = []
+            interventions_by_id = {}
+
+            for entry in normalized:
+                score = self._create_score(connection, entry)
+                intervention = support_service._detect_from_score(
+                    connection,
+                    score.score_id,
+                )
+                scores.append(score)
+                if intervention is not None:
+                    interventions_by_id[
+                        intervention.intervention_id
+                    ] = intervention
+
+            return ScoreBatchDetectionResult(
+                scores=tuple(scores),
+                interventions=tuple(interventions_by_id.values()),
+            )
+
     # =====================================================
     # READ
     # =====================================================
@@ -479,6 +493,39 @@ class ScoreService:
                 entry.score_value
             ),
         )
+
+    @classmethod
+    def _normalize_batch(
+        cls,
+        entries: Iterable[ScoreCreateData],
+    ) -> tuple[ScoreCreateData, ...]:
+        try:
+            batch = tuple(entries)
+        except TypeError as exc:
+            raise ValidationError(
+                "Danh sách điểm không hợp lệ."
+            ) from exc
+
+        if not batch:
+            raise ValidationError(
+                "Danh sách điểm không được để trống."
+            )
+
+        normalized = []
+        seen_keys: set[tuple[int, int]] = set()
+        for entry in batch:
+            normalized_entry = cls._normalize_create_data(entry)
+            key = (
+                normalized_entry.enrollment_id,
+                normalized_entry.assessment_id,
+            )
+            if key in seen_keys:
+                raise DuplicateError(
+                    "Batch có enrollment và bài đánh giá bị trùng."
+                )
+            seen_keys.add(key)
+            normalized.append(normalized_entry)
+        return tuple(normalized)
 
     @staticmethod
     def _validate_identifier(
