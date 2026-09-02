@@ -1,5 +1,7 @@
 from collections.abc import Iterable
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+
+import pyodbc
 
 from database.connection import DatabaseManager
 from exceptions import (
@@ -18,6 +20,10 @@ from services.support_service import SupportService
 
 
 class ScoreService:
+    MIN_SCORE = Decimal("0")
+    MAX_SCORE = Decimal("10")
+    SCORE_QUANTUM = Decimal("0.01")
+
     def __init__(
         self,
         db: DatabaseManager,
@@ -79,7 +85,7 @@ class ScoreService:
             assessment_id=assessment_id,
             score_value=score_value,
         )
-        self._validate_create_data(entry)
+        entry = self._normalize_create_data(entry)
 
         with self.db.transaction() as connection:
             return self._create_score(connection, entry)
@@ -100,13 +106,25 @@ class ScoreService:
                 "Danh sách điểm không được để trống."
             )
 
+        normalized: list[ScoreCreateData] = []
+        seen_keys: set[tuple[int, int]] = set()
         for entry in batch:
-            self._validate_create_data(entry)
+            normalized_entry = self._normalize_create_data(entry)
+            key = (
+                normalized_entry.enrollment_id,
+                normalized_entry.assessment_id,
+            )
+            if key in seen_keys:
+                raise DuplicateError(
+                    "Batch có enrollment và bài đánh giá bị trùng."
+                )
+            seen_keys.add(key)
+            normalized.append(normalized_entry)
 
         with self.db.transaction() as connection:
             return [
                 self._create_score(connection, entry)
-                for entry in batch
+                for entry in normalized
             ]
 
     def _create_score(
@@ -144,12 +162,19 @@ class ScoreService:
                 "Học sinh đã có điểm cho bài đánh giá này."
             )
 
-        return self.score_repository.create(
-            connection,
-            entry.enrollment_id,
-            entry.assessment_id,
-            entry.score_value,
-        )
+        try:
+            return self.score_repository.create(
+                connection,
+                entry.enrollment_id,
+                entry.assessment_id,
+                entry.score_value,
+            )
+        except pyodbc.IntegrityError as exc:
+            if self._is_duplicate_database_error(exc):
+                raise DuplicateError(
+                    "Học sinh đã có điểm cho bài đánh giá này."
+                ) from exc
+            raise
 
     def create_score_and_detect(
         self,
@@ -174,17 +199,9 @@ class ScoreService:
             tuple[Score, Intervention | None]
         """
 
-        if enrollment_id <= 0:
-            raise ValidationError(
-                "enrollment_id không hợp lệ."
-            )
-
-        if assessment_id <= 0:
-            raise ValidationError(
-                "assessment_id không hợp lệ."
-            )
-
-        self._validate_score_value(score_value)
+        self._validate_identifier("enrollment_id", enrollment_id)
+        self._validate_identifier("assessment_id", assessment_id)
+        score_value = self._normalize_score_value(score_value)
 
         with self.db.transaction() as connection:
 
@@ -344,7 +361,7 @@ class ScoreService:
                 "score_id không hợp lệ."
             )
 
-        self._validate_score_value(score_value)
+        score_value = self._normalize_score_value(score_value)
 
         with self.db.transaction() as connection:
 
@@ -378,9 +395,9 @@ class ScoreService:
     # =====================================================
 
     @staticmethod
-    def _validate_create_data(
+    def _normalize_create_data(
         entry: ScoreCreateData,
-    ) -> None:
+    ) -> ScoreCreateData:
         if not isinstance(entry, ScoreCreateData):
             raise ValidationError(
                 "Dữ liệu điểm không hợp lệ."
@@ -390,32 +407,89 @@ class ScoreService:
             ("enrollment_id", entry.enrollment_id),
             ("assessment_id", entry.assessment_id),
         ):
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, int)
-                or value <= 0
-            ):
-                raise ValidationError(
-                    f"{field_name} không hợp lệ."
-                )
+            ScoreService._validate_identifier(field_name, value)
 
-        ScoreService._validate_score_value(entry.score_value)
+        return ScoreCreateData(
+            enrollment_id=entry.enrollment_id,
+            assessment_id=entry.assessment_id,
+            score_value=ScoreService._normalize_score_value(
+                entry.score_value
+            ),
+        )
 
     @staticmethod
-    def _validate_score_value(
-        score_value: Decimal,
+    def _validate_identifier(
+        field_name: str,
+        value: int,
     ) -> None:
-        if score_value is None:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value <= 0
+        ):
             raise ValidationError(
-                "Điểm không được để trống."
+                f"{field_name} không hợp lệ."
             )
 
-        if score_value < Decimal("0"):
+    @classmethod
+    def _normalize_score_value(cls, score_value) -> Decimal:
+        if score_value is None or isinstance(score_value, bool):
             raise ValidationError(
-                "Điểm không được nhỏ hơn 0."
+                "Điểm không hợp lệ."
             )
 
-        if score_value > Decimal("10"):
+        if isinstance(score_value, str):
+            score_text = score_value.strip()
+            if not score_text:
+                raise ValidationError(
+                    "Điểm không được để trống."
+                )
+        elif isinstance(score_value, (Decimal, int, float)):
+            score_text = str(score_value)
+        else:
             raise ValidationError(
-                "Điểm không được lớn hơn 10."
+                "Kiểu dữ liệu điểm không hợp lệ."
             )
+
+        try:
+            normalized = Decimal(score_text)
+        except (InvalidOperation, ValueError):
+            raise ValidationError(
+                "Điểm phải là một giá trị số hợp lệ."
+            ) from None
+
+        if not normalized.is_finite():
+            raise ValidationError(
+                "Điểm phải là một số hữu hạn."
+            )
+
+        if normalized < cls.MIN_SCORE or normalized > cls.MAX_SCORE:
+            raise ValidationError(
+                "Điểm phải nằm trong khoảng từ 0 đến 10."
+            )
+
+        try:
+            rounded = normalized.quantize(cls.SCORE_QUANTUM)
+        except InvalidOperation:
+            raise ValidationError(
+                "Độ chính xác của điểm không hợp lệ."
+            ) from None
+
+        if rounded != normalized:
+            raise ValidationError(
+                "Điểm chỉ được có tối đa 2 chữ số thập phân."
+            )
+
+        return normalized
+
+    @classmethod
+    def _validate_score_value(cls, score_value) -> None:
+        cls._normalize_score_value(score_value)
+
+    @staticmethod
+    def _is_duplicate_database_error(exc: Exception) -> bool:
+        message = str(exc).upper()
+        return any(
+            marker in message
+            for marker in ("2601", "2627", "UNIQUE")
+        )

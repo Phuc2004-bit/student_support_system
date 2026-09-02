@@ -340,10 +340,21 @@ class ScoresPage(QWidget):
                 ScoreCreateData(
                     enrollment_id=enrollment_id,
                     assessment_id=assessment_id,
-                    score_value=Decimal(text.replace(",", ".")),
+                    score_value=self._parse_score_text(text),
                 )
             )
         return tuple(entries)
+
+    @staticmethod
+    def _parse_score_text(text: str) -> Decimal:
+        value = Decimal(text.replace(",", "."))
+        if not value.is_finite():
+            raise ValueError("Score must be finite.")
+        if value < Decimal("0") or value > Decimal("10"):
+            raise ValueError("Score must be between 0 and 10.")
+        if value.quantize(Decimal("0.01")) != value:
+            raise ValueError("Score supports at most 2 decimal places.")
+        return value
 
     def _update_save_state(self, *_args) -> None:
         can_save = False

@@ -257,6 +257,11 @@ def test_manual_score_roster_and_batch_are_integrated_without_detection():
                 enrollments[0].enrollment_id,
                 assessment_rollback.assessment_id,
             )
+            preserved = score_repository.get_by_enrollment_assessment(
+                connection,
+                enrollments[1].enrollment_id,
+                assessment_rollback.assessment_id,
+            )
             intervention_count = connection.cursor().execute(
                 """
                 SELECT COUNT(*)
@@ -268,6 +273,8 @@ def test_manual_score_roster_and_batch_are_integrated_without_detection():
             ).fetchone()[0]
 
         assert rolled_back is None
+        assert preserved is not None
+        assert preserved.score == Decimal("7.00")
         assert intervention_count == 0
     finally:
         cleanup(db)
