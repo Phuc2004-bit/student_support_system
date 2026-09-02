@@ -23,6 +23,34 @@ class InterventionRepository:
         InterventionStatus.CONTINUE.value,
     )
 
+    def is_score_linked_to_support(
+        self,
+        connection: pyodbc.Connection,
+        score_id: int,
+    ) -> bool:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT CASE WHEN
+                EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.INTERVENTIONS
+                    WHERE trigger_score_id = ?
+                )
+                OR EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.INTERVENTION_REVIEWS
+                    WHERE score_id = ?
+                )
+            THEN 1 ELSE 0 END
+            """,
+            score_id,
+            score_id,
+        )
+        return bool(cursor.fetchone()[0])
+
     def create(
         self,
         connection: pyodbc.Connection,

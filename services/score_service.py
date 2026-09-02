@@ -5,6 +5,7 @@ import pyodbc
 
 from database.connection import DatabaseManager
 from exceptions import (
+    BusinessRuleError,
     DuplicateError,
     ValidationError,
 )
@@ -397,11 +398,7 @@ class ScoreService:
         score_id: int,
         score_value: Decimal,
     ) -> Score:
-        if score_id <= 0:
-            raise ValidationError(
-                "score_id không hợp lệ."
-            )
-
+        self._validate_identifier("score_id", score_id)
         score_value = self._normalize_score_value(score_value)
 
         with self.db.transaction() as connection:
@@ -418,6 +415,14 @@ class ScoreService:
                     "Không tìm thấy điểm cần cập nhật."
                 )
 
+            if self.intervention_repository.is_score_linked_to_support(
+                connection,
+                score_id,
+            ):
+                raise BusinessRuleError(
+                    "Không thể sửa điểm đã được sử dụng trong lịch sử bổ trợ."
+                )
+
             updated = self.score_repository.update(
                 connection,
                 score_id,
@@ -430,6 +435,23 @@ class ScoreService:
                 )
 
             return updated
+
+    def can_edit_score(self, score_id: int) -> bool:
+        self._validate_identifier("score_id", score_id)
+
+        with self.db.transaction() as connection:
+            existing = self.score_repository.get_by_id(
+                connection,
+                score_id,
+            )
+            if existing is None:
+                raise ValidationError(
+                    "Không tìm thấy điểm cần cập nhật."
+                )
+            return not self.intervention_repository.is_score_linked_to_support(
+                connection,
+                score_id,
+            )
 
     # =====================================================
     # VALIDATION

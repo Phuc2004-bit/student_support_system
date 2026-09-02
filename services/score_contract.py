@@ -28,3 +28,13 @@ class ScoreServiceContract(Protocol):
         assessment_id: int,
     ) -> list[ScoreRosterItem]:
         ...
+
+    def can_edit_score(self, score_id: int) -> bool:
+        ...
+
+    def update_score(
+        self,
+        score_id: int,
+        score_value: Decimal,
+    ) -> Score:
+        ...

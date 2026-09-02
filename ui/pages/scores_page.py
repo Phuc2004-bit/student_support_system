@@ -61,6 +61,8 @@ class ScoresPage(QWidget):
         self._enrollments: tuple[EnrollmentListItem, ...] = ()
         self._score_rows: tuple[ScoreRosterItem, ...] = ()
         self._saved_enrollment_ids: set[int] = set()
+        self._editing_row: int | None = None
+        self._original_score_text = ""
         self.setObjectName("scoresPage")
         self._build_ui()
 
@@ -133,6 +135,15 @@ class ScoresPage(QWidget):
 
         actions = QHBoxLayout()
         actions.addStretch(1)
+        self.edit_button = QPushButton("Sửa", self)
+        self.edit_button.setEnabled(False)
+        actions.addWidget(self.edit_button)
+        self.cancel_edit_button = QPushButton("Hủy sửa", self)
+        self.cancel_edit_button.setEnabled(False)
+        actions.addWidget(self.cancel_edit_button)
+        self.update_button = QPushButton("Lưu thay đổi", self)
+        self.update_button.setEnabled(False)
+        actions.addWidget(self.update_button)
         self.save_button = QPushButton("Lưu điểm", self)
         self.save_button.setEnabled(False)
         actions.addWidget(self.save_button)
@@ -143,6 +154,18 @@ class ScoresPage(QWidget):
         )
         self.score_table.itemChanged.connect(
             self._update_save_state
+        )
+        self.score_table.itemSelectionChanged.connect(
+            self._update_edit_state
+        )
+        self.edit_button.clicked.connect(
+            lambda _checked=False: self.begin_edit_selected_score()
+        )
+        self.cancel_edit_button.clicked.connect(
+            lambda _checked=False: self.cancel_score_edit()
+        )
+        self.update_button.clicked.connect(
+            lambda _checked=False: self.save_score_edit()
         )
         self.save_button.clicked.connect(
             lambda _checked=False: self.save_scores()
@@ -288,6 +311,8 @@ class ScoresPage(QWidget):
     ) -> None:
         self._score_rows = rows
         self._saved_enrollment_ids.clear()
+        self._editing_row = None
+        self._original_score_text = ""
 
         self.score_table.blockSignals(True)
         self.score_table.setRowCount(len(self._score_rows))
@@ -345,6 +370,75 @@ class ScoresPage(QWidget):
                 "Lớp chưa có học sinh."
             )
         self._update_save_state()
+        self._update_edit_state()
+
+    def begin_edit_selected_score(self) -> bool:
+        row = self.score_table.currentRow()
+        score_id = self.score_id_at_row(row)
+        if score_id is None or self.score_service is None:
+            self._update_edit_state()
+            return False
+
+        checker = getattr(self.score_service, "can_edit_score", None)
+        try:
+            if callable(checker) and not checker(score_id):
+                self.context_status_label.setText(
+                    "Không thể sửa điểm đã được sử dụng trong lịch sử bổ trợ."
+                )
+                return False
+        except Exception as exc:
+            self.context_status_label.setText(self._error_message(exc))
+            return False
+
+        item = self.score_table.item(row, 3)
+        self._editing_row = row
+        self._original_score_text = item.text()
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+        self.score_table.editItem(item)
+        self._update_edit_state()
+        return True
+
+    def cancel_score_edit(self) -> bool:
+        if self._editing_row is None:
+            return False
+        row = self._editing_row
+        item = self.score_table.item(row, 3)
+        self.score_table.blockSignals(True)
+        item.setText(self._original_score_text)
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        self.score_table.blockSignals(False)
+        self._editing_row = None
+        self._original_score_text = ""
+        self.context_status_label.setText("Đã hủy chỉnh sửa điểm.")
+        self._update_save_state()
+        self._update_edit_state()
+        return True
+
+    def save_score_edit(self) -> bool:
+        if self._editing_row is None or self.score_service is None:
+            return False
+        row = self._editing_row
+        score_id = self.score_id_at_row(row)
+        item = self.score_table.item(row, 3)
+        try:
+            score_value = self._parse_score_text(item.text().strip())
+            self.score_service.update_score(score_id, score_value)
+        except (InvalidOperation, ValueError):
+            self.context_status_label.setText(
+                "Điểm nhập vào không hợp lệ."
+            )
+            return False
+        except Exception as exc:
+            self.context_status_label.setText(self._error_message(exc))
+            return False
+
+        self._editing_row = None
+        self._original_score_text = ""
+        refreshed = self.load_students()
+        if refreshed:
+            self.context_status_label.setText("Đã cập nhật điểm.")
+        self._update_edit_state()
+        return refreshed
 
     def save_scores(self) -> bool:
         context = self.current_context()
@@ -467,11 +561,30 @@ class ScoresPage(QWidget):
                 for row in range(self.score_table.rowCount())
             )
         self.save_button.setEnabled(can_save)
+        if self._editing_row is not None:
+            self.save_button.setEnabled(False)
+
+    def _update_edit_state(self) -> None:
+        editing = self._editing_row is not None
+        selected_score_id = self.score_id_at_row(
+            self.score_table.currentRow()
+        )
+        self.edit_button.setEnabled(
+            not editing
+            and selected_score_id is not None
+            and self.score_service is not None
+        )
+        self.cancel_edit_button.setEnabled(editing)
+        self.update_button.setEnabled(editing)
+        if editing:
+            self.save_button.setEnabled(False)
 
     def _clear_students(self, message: str) -> None:
         self._enrollments = ()
         self._score_rows = ()
         self._saved_enrollment_ids.clear()
+        self._editing_row = None
+        self._original_score_text = ""
         self.score_table.blockSignals(True)
         self.score_table.setRowCount(0)
         self.score_table.blockSignals(False)
@@ -481,6 +594,9 @@ class ScoresPage(QWidget):
             message
         )
         self.save_button.setEnabled(False)
+        self.edit_button.setEnabled(False)
+        self.cancel_edit_button.setEnabled(False)
+        self.update_button.setEnabled(False)
 
     def _can_read_scores(self) -> bool:
         return (
