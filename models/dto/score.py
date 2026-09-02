@@ -4,6 +4,13 @@ from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
+class ScoreCreateData:
+    enrollment_id: int
+    assessment_id: int
+    score_value: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class Score:
     score_id: int
     enrollment_id: int

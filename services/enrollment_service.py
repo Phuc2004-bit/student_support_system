@@ -234,6 +234,25 @@ class EnrollmentService:
                 student_id,
             )
 
+    def list_class_enrollments(
+        self,
+        class_id: int,
+        school_year_id: int,
+    ) -> list[EnrollmentListItem]:
+        self._validate_positive_id("class_id", class_id)
+        self._validate_positive_id(
+            "school_year_id",
+            school_year_id,
+        )
+
+        with self.db.transaction() as connection:
+            return self.enrollment_repository.list_by_class(
+                connection,
+                class_id,
+                school_year_id,
+                EnrollmentStatus.ACTIVE,
+            )
+
     # =====================================================
     # VALIDATION
     # =====================================================
@@ -257,4 +276,18 @@ class EnrollmentService:
         if action_date is None:
             raise ValidationError(
                 "Ngày nhập học/chuyển lớp không được để trống."
+            )
+
+    @staticmethod
+    def _validate_positive_id(
+        field_name: str,
+        value: int,
+    ) -> None:
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value <= 0
+        ):
+            raise ValidationError(
+                f"{field_name} không hợp lệ."
             )

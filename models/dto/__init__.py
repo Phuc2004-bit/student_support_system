@@ -8,7 +8,7 @@ from models.dto.student import (
     StudentUpdateData,
 )
 from models.dto.assessment import Assessment
-from models.dto.score import Score, ScoreListItem
+from models.dto.score import Score, ScoreCreateData, ScoreListItem
 from models.dto.support_rule import SupportRule
 from models.dto.intervention import (
     Intervention,
@@ -34,6 +34,7 @@ __all__ = [
     "StudentUpdateData",
     "Assessment",
     "Score",
+    "ScoreCreateData",
     "ScoreListItem",
     "SupportRule",
     "Intervention",

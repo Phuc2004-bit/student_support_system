@@ -34,3 +34,10 @@ class EnrollmentServiceContract(Protocol):
         student_id: str,
     ) -> list[EnrollmentListItem]:
         ...
+
+    def list_class_enrollments(
+        self,
+        class_id: int,
+        school_year_id: int,
+    ) -> list[EnrollmentListItem]:
+        ...

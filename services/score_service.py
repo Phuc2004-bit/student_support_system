@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from decimal import Decimal
 
 from database.connection import DatabaseManager
@@ -5,7 +6,7 @@ from exceptions import (
     DuplicateError,
     ValidationError,
 )
-from models.dto import Score
+from models.dto import Score, ScoreCreateData
 from repositories import (
     AcademicRepository,
     EnrollmentRepository,
@@ -73,68 +74,82 @@ class ScoreService:
         create_score_and_detect().
         """
 
-        if enrollment_id <= 0:
-            raise ValidationError(
-                "enrollment_id không hợp lệ."
-            )
-
-        if assessment_id <= 0:
-            raise ValidationError(
-                "assessment_id không hợp lệ."
-            )
-
-        self._validate_score_value(score_value)
+        entry = ScoreCreateData(
+            enrollment_id=enrollment_id,
+            assessment_id=assessment_id,
+            score_value=score_value,
+        )
+        self._validate_create_data(entry)
 
         with self.db.transaction() as connection:
+            return self._create_score(connection, entry)
 
-            # Kiểm tra enrollment tồn tại
-            enrollment = (
-                self.enrollment_repository.get_by_id(
-                    connection,
-                    enrollment_id,
-                )
+    def create_scores(
+        self,
+        entries: Iterable[ScoreCreateData],
+    ) -> list[Score]:
+        try:
+            batch = tuple(entries)
+        except TypeError as exc:
+            raise ValidationError(
+                "Danh sách điểm không hợp lệ."
+            ) from exc
+
+        if not batch:
+            raise ValidationError(
+                "Danh sách điểm không được để trống."
             )
 
-            if enrollment is None:
-                raise ValidationError(
-                    "Không tìm thấy enrollment."
-                )
+        for entry in batch:
+            self._validate_create_data(entry)
 
-            # Kiểm tra assessment tồn tại
-            assessment = (
-                self.academic_repository
-                .get_assessment_by_id(
-                    connection,
-                    assessment_id,
-                )
+        with self.db.transaction() as connection:
+            return [
+                self._create_score(connection, entry)
+                for entry in batch
+            ]
+
+    def _create_score(
+        self,
+        connection,
+        entry: ScoreCreateData,
+    ) -> Score:
+        enrollment = self.enrollment_repository.get_by_id(
+            connection,
+            entry.enrollment_id,
+        )
+        if enrollment is None:
+            raise ValidationError(
+                "Không tìm thấy enrollment."
             )
 
-            if assessment is None:
-                raise ValidationError(
-                    "Không tìm thấy bài đánh giá."
-                )
-
-            # Không cho phép trùng điểm
-            existing = (
-                self.score_repository
-                .get_by_enrollment_assessment(
-                    connection,
-                    enrollment_id,
-                    assessment_id,
-                )
+        assessment = self.academic_repository.get_assessment_by_id(
+            connection,
+            entry.assessment_id,
+        )
+        if assessment is None:
+            raise ValidationError(
+                "Không tìm thấy bài đánh giá."
             )
 
-            if existing is not None:
-                raise DuplicateError(
-                    "Học sinh đã có điểm cho bài đánh giá này."
-                )
-
-            return self.score_repository.create(
+        existing = (
+            self.score_repository.get_by_enrollment_assessment(
                 connection,
-                enrollment_id,
-                assessment_id,
-                score_value,
+                entry.enrollment_id,
+                entry.assessment_id,
             )
+        )
+        if existing is not None:
+            raise DuplicateError(
+                "Học sinh đã có điểm cho bài đánh giá này."
+            )
+
+        return self.score_repository.create(
+            connection,
+            entry.enrollment_id,
+            entry.assessment_id,
+            entry.score_value,
+        )
 
     def create_score_and_detect(
         self,
@@ -361,6 +376,30 @@ class ScoreService:
     # =====================================================
     # VALIDATION
     # =====================================================
+
+    @staticmethod
+    def _validate_create_data(
+        entry: ScoreCreateData,
+    ) -> None:
+        if not isinstance(entry, ScoreCreateData):
+            raise ValidationError(
+                "Dữ liệu điểm không hợp lệ."
+            )
+
+        for field_name, value in (
+            ("enrollment_id", entry.enrollment_id),
+            ("assessment_id", entry.assessment_id),
+        ):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, int)
+                or value <= 0
+            ):
+                raise ValidationError(
+                    f"{field_name} không hợp lệ."
+                )
+
+        ScoreService._validate_score_value(entry.score_value)
 
     @staticmethod
     def _validate_score_value(

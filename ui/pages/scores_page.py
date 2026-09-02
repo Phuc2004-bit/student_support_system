@@ -1,23 +1,64 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from collections.abc import Iterable
+from decimal import Decimal, InvalidOperation
+
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QFrame,
+    QHeaderView,
+    QHBoxLayout,
     QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
+from models.dto.enrollment import EnrollmentListItem
+from models.dto.score import ScoreCreateData
+from services.enrollment_contract import EnrollmentServiceContract
+from services.score_contract import (
+    ScoreServiceContract as ScoreWriterContract,
+)
 from ui.widgets.score_context_filter_widget import (
     ScoreContextFilterWidget,
     ScoreContextSelection,
 )
 
 
+def save_score_batch(
+    service: ScoreWriterContract,
+    entries: tuple[ScoreCreateData, ...],
+):
+    return service.create_scores(entries)
+
+
 class ScoresPage(QWidget):
-    def __init__(self, academic_service=None, parent=None):
+    scores_saved = Signal(int)
+
+    TABLE_HEADERS = (
+        "STT",
+        "Mã học sinh",
+        "Họ và tên",
+        "Điểm",
+    )
+
+    def __init__(
+        self,
+        academic_service=None,
+        enrollment_service: EnrollmentServiceContract | None = None,
+        score_service: ScoreWriterContract | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.academic_service = academic_service
+        self.enrollment_service = enrollment_service
+        self.score_service = score_service
+        self._enrollments: tuple[EnrollmentListItem, ...] = ()
+        self._saved_enrollment_ids: set[int] = set()
         self.setObjectName("scoresPage")
         self._build_ui()
 
@@ -64,10 +105,45 @@ class ScoresPage(QWidget):
             Qt.AlignmentFlag.AlignCenter
         )
         placeholder_layout.addWidget(self.placeholder_label)
+
+        self.score_table = QTableWidget(
+            self.score_table_placeholder
+        )
+        self.score_table.setColumnCount(len(self.TABLE_HEADERS))
+        self.score_table.setHorizontalHeaderLabels(
+            self.TABLE_HEADERS
+        )
+        self.score_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.score_table.setAlternatingRowColors(True)
+        self.score_table.verticalHeader().setVisible(False)
+        header = self.score_table.horizontalHeader()
+        header.setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        header.setSectionResizeMode(
+            2,
+            QHeaderView.ResizeMode.Stretch,
+        )
+        placeholder_layout.addWidget(self.score_table, 1)
         root.addWidget(self.score_table_placeholder, 1)
+
+        actions = QHBoxLayout()
+        actions.addStretch(1)
+        self.save_button = QPushButton("Lưu điểm", self)
+        self.save_button.setEnabled(False)
+        actions.addWidget(self.save_button)
+        root.addLayout(actions)
 
         self.context_filter.context_changed.connect(
             self._on_context_changed
+        )
+        self.score_table.itemChanged.connect(
+            self._update_save_state
+        )
+        self.save_button.clicked.connect(
+            lambda _checked=False: self.save_scores()
         )
         self._on_context_changed(
             self.context_filter.current_value()
@@ -82,6 +158,18 @@ class ScoresPage(QWidget):
     def current_context(self) -> ScoreContextSelection:
         return self.context_filter.current_value()
 
+    @property
+    def enrollments(self) -> tuple[EnrollmentListItem, ...]:
+        return self._enrollments
+
+    def enrollment_id_at_row(self, row: int) -> int | None:
+        if row < 0 or row >= self.score_table.rowCount():
+            return None
+        item = self.score_table.item(row, 0)
+        if item is None:
+            return None
+        return item.data(Qt.ItemDataRole.UserRole)
+
     def _on_context_changed(
         self,
         context: ScoreContextSelection,
@@ -90,15 +178,203 @@ class ScoresPage(QWidget):
             self.context_status_label.setText(
                 "Đã chọn đầy đủ ngữ cảnh."
             )
-            self.placeholder_label.setText(
-                "Bảng điểm chưa được triển khai trong bước này."
-            )
+            if self.enrollment_service is not None:
+                self.load_students()
             return
 
+        self._clear_students(
+            "Chọn đầy đủ ngữ cảnh để tải danh sách học sinh."
+        )
         self.context_status_label.setText(
             "Vui lòng chọn năm học, khối, lớp, môn học "
             "và bài đánh giá."
         )
-        self.placeholder_label.setText(
-            "Bảng điểm sẽ hiển thị tại đây."
+
+    def load_students(self) -> bool:
+        context = self.current_context()
+        if not context.is_complete or self.enrollment_service is None:
+            self._clear_students(
+                "Chọn đầy đủ ngữ cảnh để tải danh sách học sinh."
+            )
+            return False
+
+        try:
+            enrollments = (
+                self.enrollment_service.list_class_enrollments(
+                    context.class_id,
+                    context.school_year_id,
+                )
+            )
+        except Exception as exc:
+            self._clear_students(
+                "Không thể tải danh sách học sinh."
+            )
+            self.context_status_label.setText(
+                self._error_message(exc)
+            )
+            return False
+
+        self.set_students(enrollments)
+        if self._enrollments:
+            self.context_status_label.setText(
+                f"{len(self._enrollments)} học sinh trong lớp."
+            )
+        else:
+            self.context_status_label.setText(
+                "Lớp chưa có học sinh."
+            )
+        return True
+
+    def set_students(
+        self,
+        enrollments: Iterable[EnrollmentListItem],
+    ) -> None:
+        self._enrollments = tuple(enrollments)
+        self._saved_enrollment_ids.clear()
+
+        self.score_table.blockSignals(True)
+        self.score_table.setRowCount(len(self._enrollments))
+
+        for row, enrollment in enumerate(self._enrollments):
+            number_item = QTableWidgetItem(str(row + 1))
+            number_item.setData(
+                Qt.ItemDataRole.UserRole,
+                enrollment.enrollment_id,
+            )
+            code_item = QTableWidgetItem(enrollment.student_code)
+            name_item = QTableWidgetItem(enrollment.full_name)
+            score_item = QTableWidgetItem("")
+
+            for item in (number_item, code_item, name_item):
+                item.setFlags(
+                    item.flags()
+                    & ~Qt.ItemFlag.ItemIsEditable
+                )
+
+            self.score_table.setItem(row, 0, number_item)
+            self.score_table.setItem(row, 1, code_item)
+            self.score_table.setItem(row, 2, name_item)
+            self.score_table.setItem(row, 3, score_item)
+
+        self.score_table.blockSignals(False)
+        has_students = bool(self._enrollments)
+        self.placeholder_label.setVisible(not has_students)
+        self.score_table.setVisible(has_students)
+        if not has_students:
+            self.placeholder_label.setText(
+                "Lớp chưa có học sinh."
+            )
+        self._update_save_state()
+
+    def save_scores(self) -> bool:
+        context = self.current_context()
+        if (
+            not context.is_complete
+            or self.score_service is None
+            or not self._enrollments
+        ):
+            self._update_save_state()
+            return False
+
+        try:
+            entries = self._score_entries(context.assessment_id)
+        except (InvalidOperation, ValueError):
+            self.context_status_label.setText(
+                "Điểm nhập vào không hợp lệ."
+            )
+            return False
+
+        if not entries:
+            self._update_save_state()
+            return False
+
+        try:
+            save_score_batch(self.score_service, entries)
+        except Exception as exc:
+            self.context_status_label.setText(
+                self._error_message(exc)
+            )
+            return False
+
+        saved_ids = {
+            entry.enrollment_id
+            for entry in entries
+        }
+        self._saved_enrollment_ids.update(saved_ids)
+
+        self.score_table.blockSignals(True)
+        for row in range(self.score_table.rowCount()):
+            enrollment_id = self.enrollment_id_at_row(row)
+            if enrollment_id not in saved_ids:
+                continue
+            score_item = self.score_table.item(row, 3)
+            score_item.setFlags(
+                score_item.flags()
+                & ~Qt.ItemFlag.ItemIsEditable
+            )
+        self.score_table.blockSignals(False)
+
+        self.context_status_label.setText(
+            f"Đã lưu {len(entries)} điểm."
         )
+        self.scores_saved.emit(len(entries))
+        self._update_save_state()
+        return True
+
+    def _score_entries(
+        self,
+        assessment_id: int,
+    ) -> tuple[ScoreCreateData, ...]:
+        entries: list[ScoreCreateData] = []
+        for row in range(self.score_table.rowCount()):
+            enrollment_id = self.enrollment_id_at_row(row)
+            if enrollment_id in self._saved_enrollment_ids:
+                continue
+
+            item = self.score_table.item(row, 3)
+            text = item.text().strip() if item is not None else ""
+            if not text:
+                continue
+
+            entries.append(
+                ScoreCreateData(
+                    enrollment_id=enrollment_id,
+                    assessment_id=assessment_id,
+                    score_value=Decimal(text.replace(",", ".")),
+                )
+            )
+        return tuple(entries)
+
+    def _update_save_state(self, *_args) -> None:
+        can_save = False
+        context = self.current_context()
+        if (
+            context.is_complete
+            and self.score_service is not None
+            and self._enrollments
+        ):
+            can_save = any(
+                self.enrollment_id_at_row(row)
+                not in self._saved_enrollment_ids
+                and bool(self.score_table.item(row, 3).text().strip())
+                for row in range(self.score_table.rowCount())
+            )
+        self.save_button.setEnabled(can_save)
+
+    def _clear_students(self, message: str) -> None:
+        self._enrollments = ()
+        self._saved_enrollment_ids.clear()
+        self.score_table.blockSignals(True)
+        self.score_table.setRowCount(0)
+        self.score_table.blockSignals(False)
+        self.score_table.setVisible(False)
+        self.placeholder_label.setVisible(True)
+        self.placeholder_label.setText(
+            message
+        )
+        self.save_button.setEnabled(False)
+
+    @staticmethod
+    def _error_message(exc: Exception) -> str:
+        message = str(exc).strip()
+        return message or "Đã xảy ra lỗi không xác định."

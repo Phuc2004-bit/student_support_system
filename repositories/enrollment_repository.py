@@ -146,6 +146,62 @@ class EnrollmentRepository:
 
         return self._map_enrollment(row)
 
+    def list_by_class(
+        self,
+        connection: pyodbc.Connection,
+        class_id: int,
+        school_year_id: int,
+        status: EnrollmentStatus | None = None,
+    ) -> list[EnrollmentListItem]:
+        cursor = connection.cursor()
+        parameters: list[object] = [
+            class_id,
+            school_year_id,
+        ]
+        status_filter = ""
+
+        if status is not None:
+            status_filter = "AND e.status = ?"
+            parameters.append(status.value)
+
+        cursor.execute(
+            f"""
+            SELECT
+                e.enrollment_id,
+                e.student_id,
+                s.student_code,
+                s.full_name,
+                e.class_id,
+                c.class_name,
+                g.grade_number,
+                sy.school_year_id,
+                sy.year_name AS school_year_name,
+                e.status
+            FROM dbo.STUDENT_ENROLLMENTS e
+            INNER JOIN dbo.STUDENTS s
+                ON s.student_id = e.student_id
+            INNER JOIN dbo.CLASSES c
+                ON c.class_id = e.class_id
+            INNER JOIN dbo.GRADES g
+                ON g.grade_id = c.grade_id
+            INNER JOIN dbo.SCHOOL_YEARS sy
+                ON sy.school_year_id = c.school_year_id
+            WHERE e.class_id = ?
+              AND c.school_year_id = ?
+              {status_filter}
+            ORDER BY
+                s.full_name,
+                s.student_code,
+                e.enrollment_id
+            """,
+            *parameters,
+        )
+
+        return [
+            self._map_list_item(row)
+            for row in cursor.fetchall()
+        ]
+
     def set_status(
         self,
         connection: pyodbc.Connection,
