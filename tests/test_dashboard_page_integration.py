@@ -15,6 +15,7 @@ from ui.main_window import MainWindow
 from ui.pages.dashboard_page import DashboardPage
 from ui.pages.placeholder_page import PlaceholderPage
 from ui.pages.students_page import StudentsPage
+from ui.pages.scores_page import ScoresPage
 
 
 def get_app() -> QApplication:
@@ -71,7 +72,7 @@ def test_main_window_registers_real_dashboard_page():
     )
 
 
-def test_main_window_uses_students_page_and_placeholders_for_unbuilt_pages():
+def test_main_window_uses_real_pages_and_placeholders_for_unbuilt_pages():
     get_app()
 
     window = MainWindow(
@@ -79,9 +80,9 @@ def test_main_window_uses_students_page_and_placeholders_for_unbuilt_pages():
     )
 
     assert isinstance(window.pages["students"], StudentsPage)
+    assert isinstance(window.pages["scores"], ScoresPage)
 
     for key in (
-        "scores",
         "support",
         "reports",
         "catalogs",

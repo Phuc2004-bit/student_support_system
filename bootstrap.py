@@ -10,6 +10,7 @@ from services.enrollment_service import EnrollmentService
 from services.student_list_service import StudentListService
 from services.student_profile_service import StudentProfileService
 from services.student_service import StudentService
+from services.score_service import ScoreService
 from app_context import AppContext
 
 
@@ -32,6 +33,7 @@ def build_app_context() -> AppContext:
     student_service = StudentService(db=db)
     enrollment_service = EnrollmentService(db=db)
     student_profile_service = StudentProfileService(db=db)
+    score_service = ScoreService(db=db)
 
     return AppContext(
         db=db,
@@ -43,4 +45,5 @@ def build_app_context() -> AppContext:
         student_service=student_service,
         enrollment_service=enrollment_service,
         student_profile_service=student_profile_service,
+        score_service=score_service,
     )
