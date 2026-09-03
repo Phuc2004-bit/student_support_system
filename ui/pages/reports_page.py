@@ -15,8 +15,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from models.dto.dashboard_dto import DashboardStatusItem
 from models.dto.report_dto import SupportReportData
-from ui.widgets.dashboard_charts import status_label
+from ui.widgets.dashboard_charts import DashboardBarChart, status_label
 from ui.widgets.kpi_card import KpiCard
 from ui.widgets.support_filter_widget import (
     SupportFilterSelection,
@@ -56,6 +57,15 @@ class ReportsPage(QWidget):
         "Ngày đánh giá gần nhất",
         "Điểm đánh giá gần nhất",
         "Kết quả đánh giá gần nhất",
+    )
+
+    STATUS_SUMMARY_FIELDS = (
+        ("DETECTED", "detected_count"),
+        ("PLANNED", "planned_count"),
+        ("IN_PROGRESS", "in_progress_count"),
+        ("WAITING_REVIEW", "waiting_review_count"),
+        ("CONTINUE", "continue_count"),
+        ("COMPLETED", "completed_count"),
     )
 
     def __init__(
@@ -114,11 +124,7 @@ class ReportsPage(QWidget):
 
         self._build_summary_section()
         self._build_cases_section()
-        self.charts_frame = self._placeholder_section(
-            "reportChartsFrame",
-            "Biểu đồ / thống kê",
-            "Biểu đồ báo cáo chưa được triển khai.",
-        )
+        self._build_charts_section()
         root.addWidget(self.summary_frame)
         root.addWidget(self.cases_frame, 1)
         root.addWidget(self.charts_frame)
@@ -182,6 +188,38 @@ class ReportsPage(QWidget):
         )
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         layout.addWidget(self.table, 1)
+
+    def _build_charts_section(self) -> None:
+        self.charts_frame = QFrame(self)
+        self.charts_frame.setObjectName("reportChartsFrame")
+        layout = QVBoxLayout(self.charts_frame)
+        self.charts_title_label = QLabel(
+            "Biểu đồ / thống kê",
+            self.charts_frame,
+        )
+        self.charts_title_label.setObjectName("reportChartsFrameTitle")
+        layout.addWidget(self.charts_title_label)
+
+        charts_layout = QHBoxLayout()
+        charts_layout.setSpacing(12)
+        self.status_chart = DashboardBarChart(
+            self.charts_frame,
+            title="Ca bổ trợ theo trạng thái",
+            y_label="Số ca",
+            empty_message="Không có dữ liệu để hiển thị",
+            object_name="reportStatusChart",
+        )
+        self.subject_chart = DashboardBarChart(
+            self.charts_frame,
+            title="Ca bổ trợ theo môn",
+            y_label="Số ca",
+            empty_message="Không có dữ liệu để hiển thị",
+            label_formatter=lambda label: label,
+            object_name="reportSubjectChart",
+        )
+        charts_layout.addWidget(self.status_chart, 1)
+        charts_layout.addWidget(self.subject_chart, 1)
+        layout.addLayout(charts_layout)
 
     def _placeholder_section(
         self,
@@ -296,6 +334,53 @@ class ReportsPage(QWidget):
         has_rows = bool(data.rows)
         self.empty_label.setVisible(not has_rows)
         self.table.setVisible(has_rows)
+        self.status_chart.set_data(self._status_chart_items(data))
+        self.subject_chart.set_data(self._subject_chart_items(data))
+
+    @classmethod
+    def _status_chart_items(
+        cls,
+        data: SupportReportData,
+    ) -> tuple[DashboardStatusItem, ...]:
+        return tuple(
+            DashboardStatusItem(
+                status=status,
+                count=getattr(data.summary, field_name),
+            )
+            for status, field_name in cls.STATUS_SUMMARY_FIELDS
+        )
+
+    @staticmethod
+    def _subject_chart_items(
+        data: SupportReportData,
+    ) -> tuple[DashboardStatusItem, ...]:
+        grouped: dict[tuple[str, object], tuple[str, int]] = {}
+        for row in data.rows:
+            key = (
+                ("id", row.subject_id)
+                if row.subject_id is not None
+                else ("code", row.subject_code)
+            )
+            current = grouped.get(key)
+            if current is None:
+                grouped[key] = (row.subject_name, 1)
+            else:
+                grouped[key] = (current[0], current[1] + 1)
+
+        ordered = (
+            value
+            for _, value in sorted(
+                grouped.items(),
+                key=lambda item: (
+                    item[0][0],
+                    str(item[0][1]),
+                ),
+            )
+        )
+        return tuple(
+            DashboardStatusItem(status=str(label), count=int(count))
+            for label, count in ordered
+        )
 
     def intervention_id_at_row(self, row: int) -> int | None:
         if row < 0 or row >= self.table.rowCount():
@@ -346,3 +431,5 @@ class ReportsPage(QWidget):
         self.table.setRowCount(0)
         self.table.setVisible(False)
         self.empty_label.setVisible(True)
+        self.status_chart.set_data(())
+        self.subject_chart.set_data(())
