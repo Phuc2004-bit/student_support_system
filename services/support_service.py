@@ -393,6 +393,7 @@ class SupportService:
                 connection,
                 intervention_id,
                 InterventionStatus.IN_PROGRESS,
+                required_source_status=InterventionStatus.CONTINUE,
             )
 
     # =====================================================

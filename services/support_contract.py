@@ -33,6 +33,14 @@ class InterventionWaitingReviewServiceContract(Protocol):
         ...
 
 
+class InterventionContinueServiceContract(Protocol):
+    def continue_intervention(
+        self,
+        intervention_id: int,
+    ) -> Intervention:
+        ...
+
+
 class InterventionReviewServiceContract(Protocol):
     def review_intervention(
         self,

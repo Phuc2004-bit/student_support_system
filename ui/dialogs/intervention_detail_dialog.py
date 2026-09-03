@@ -19,6 +19,7 @@ from services.support_read_contract import (
     InterventionDetailServiceContract,
 )
 from services.support_contract import (
+    InterventionContinueServiceContract,
     InterventionPlanningServiceContract,
     InterventionReviewServiceContract,
     InterventionStartServiceContract,
@@ -27,6 +28,9 @@ from services.support_contract import (
 from services.user_contract import ResponsibleUserServiceContract
 from ui.dialogs.intervention_plan_dialog import InterventionPlanDialog
 from ui.dialogs.intervention_review_dialog import InterventionReviewDialog
+from ui.dialogs.intervention_continue_confirmation import (
+    confirm_continue_support,
+)
 from ui.dialogs.intervention_start_confirmation import (
     confirm_begin_support,
 )
@@ -49,6 +53,7 @@ class InterventionDetailDialog(QDialog):
     intervention_started = Signal(int)
     intervention_waiting_review = Signal(int)
     intervention_reviewed = Signal(int)
+    intervention_continued = Signal(int)
 
     REVIEW_HEADERS = (
         "Ngày đánh giá",
@@ -66,12 +71,14 @@ class InterventionDetailDialog(QDialog):
         waiting_review_service:
             InterventionWaitingReviewServiceContract | None = None,
         review_service: InterventionReviewServiceContract | None = None,
+        continue_service: InterventionContinueServiceContract | None = None,
         assessment_service=None,
         user_service: ResponsibleUserServiceContract | None = None,
         plan_dialog_factory=InterventionPlanDialog,
         start_confirmation=confirm_begin_support,
         waiting_review_confirmation=confirm_ready_for_review,
         review_dialog_factory=InterventionReviewDialog,
+        continue_confirmation=confirm_continue_support,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -81,12 +88,14 @@ class InterventionDetailDialog(QDialog):
         self.start_service = start_service
         self.waiting_review_service = waiting_review_service
         self.review_service = review_service
+        self.continue_service = continue_service
         self.assessment_service = assessment_service
         self.user_service = user_service
         self.plan_dialog_factory = plan_dialog_factory
         self.start_confirmation = start_confirmation
         self.waiting_review_confirmation = waiting_review_confirmation
         self.review_dialog_factory = review_dialog_factory
+        self.continue_confirmation = continue_confirmation
         self.detail: InterventionDetail | None = None
         self.setObjectName("interventionDetailDialog")
         self.setWindowTitle("Chi tiết hồ sơ bổ trợ")
@@ -215,6 +224,12 @@ class InterventionDetailDialog(QDialog):
         )
         self.review_button.setVisible(False)
         self.review_button.clicked.connect(self.open_review_dialog)
+        self.continue_button = self.close_buttons.addButton(
+            "Tiếp tục bổ trợ",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        self.continue_button.setVisible(False)
+        self.continue_button.clicked.connect(self.resume_support)
         self.close_buttons.rejected.connect(self.reject)
         root.addWidget(self.close_buttons)
 
@@ -305,6 +320,12 @@ class InterventionDetailDialog(QDialog):
         )
         self.review_button.setVisible(can_review)
         self.review_button.setEnabled(can_review)
+        can_continue = (
+            detail.status.value == "CONTINUE"
+            and self.continue_service is not None
+        )
+        self.continue_button.setVisible(can_continue)
+        self.continue_button.setEnabled(can_continue)
 
     def open_plan_dialog(self) -> bool:
         if (
@@ -416,6 +437,36 @@ class InterventionDetailDialog(QDialog):
         if refreshed is None:
             return False
         self.intervention_reviewed.emit(self.intervention_id)
+        return True
+
+    def resume_support(self) -> bool:
+        if (
+            self.detail is None
+            or self.detail.status.value != "CONTINUE"
+            or self.continue_service is None
+        ):
+            return False
+
+        try:
+            continued = self.continue_confirmation(
+                self,
+                self.continue_service,
+                self.intervention_id,
+            )
+        except Exception:
+            self.error_label.setText(
+                "Không thể tiếp tục bổ trợ. Vui lòng thử lại."
+            )
+            self.error_label.setVisible(True)
+            return False
+
+        if not continued:
+            return False
+
+        refreshed = self.load_detail()
+        if refreshed is None:
+            return False
+        self.intervention_continued.emit(self.intervention_id)
         return True
 
     def _render_reviews(self, detail: InterventionDetail) -> None:

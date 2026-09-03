@@ -22,6 +22,7 @@ from services.support_read_contract import (
     SupportReadServiceContract,
 )
 from services.support_contract import (
+    InterventionContinueServiceContract,
     InterventionPlanningServiceContract,
     InterventionReviewServiceContract,
     InterventionStartServiceContract,
@@ -78,6 +79,8 @@ class SupportPage(QWidget):
             InterventionWaitingReviewServiceContract | None = None,
         intervention_review_service:
             InterventionReviewServiceContract | None = None,
+        intervention_continue_service:
+            InterventionContinueServiceContract | None = None,
         assessment_service=None,
         user_service: ResponsibleUserServiceContract | None = None,
         detail_dialog_factory=InterventionDetailDialog,
@@ -93,6 +96,7 @@ class SupportPage(QWidget):
             intervention_waiting_review_service
         )
         self.intervention_review_service = intervention_review_service
+        self.intervention_continue_service = intervention_continue_service
         self.assessment_service = assessment_service
         self.user_service = user_service
         self.detail_dialog_factory = detail_dialog_factory
@@ -309,6 +313,7 @@ class SupportPage(QWidget):
                 self.intervention_waiting_review_service
             ),
             review_service=self.intervention_review_service,
+            continue_service=self.intervention_continue_service,
             assessment_service=self.assessment_service,
             user_service=self.user_service,
             parent=self,
@@ -329,6 +334,9 @@ class SupportPage(QWidget):
         reviewed_signal = getattr(dialog, "intervention_reviewed", None)
         if reviewed_signal is not None:
             reviewed_signal.connect(self._on_intervention_reviewed)
+        continued_signal = getattr(dialog, "intervention_continued", None)
+        if continued_signal is not None:
+            continued_signal.connect(self._on_intervention_continued)
         dialog.load_detail()
         dialog.exec()
         return True
@@ -346,6 +354,9 @@ class SupportPage(QWidget):
         self.refresh_support_cases()
 
     def _on_intervention_reviewed(self, _intervention_id: int) -> None:
+        self.refresh_support_cases()
+
+    def _on_intervention_continued(self, _intervention_id: int) -> None:
         self.refresh_support_cases()
 
     def _on_filters_changed(
