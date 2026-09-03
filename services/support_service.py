@@ -84,6 +84,7 @@ class SupportService:
         connection,
         intervention_id: int,
         target_status: InterventionStatus,
+        required_source_status: InterventionStatus | None = None,
     ) -> Intervention:
         intervention = (
             self.intervention_repository.get_by_id(
@@ -95,6 +96,16 @@ class SupportService:
         if intervention is None:
             raise ValidationError(
                 "Không tìm thấy hồ sơ bổ trợ."
+            )
+
+        if (
+            required_source_status is not None
+            and intervention.status != required_source_status
+        ):
+            raise InvalidStateTransitionError(
+                f"Không thể chuyển trạng thái "
+                f"{intervention.status.value} "
+                f"→ {target_status.value}."
             )
 
         allowed = self.ALLOWED_TRANSITIONS.get(
@@ -321,7 +332,6 @@ class SupportService:
 
     # =====================================================
     # PLANNED -> IN_PROGRESS
-    # hoặc CONTINUE -> IN_PROGRESS
     # =====================================================
 
     def start_intervention(
@@ -338,6 +348,7 @@ class SupportService:
                 connection,
                 intervention_id,
                 InterventionStatus.IN_PROGRESS,
+                required_source_status=InterventionStatus.PLANNED,
             )
 
     # =====================================================

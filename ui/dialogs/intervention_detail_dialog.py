@@ -20,9 +20,13 @@ from services.support_read_contract import (
 )
 from services.support_contract import (
     InterventionPlanningServiceContract,
+    InterventionStartServiceContract,
 )
 from services.user_contract import ResponsibleUserServiceContract
 from ui.dialogs.intervention_plan_dialog import InterventionPlanDialog
+from ui.dialogs.intervention_start_confirmation import (
+    confirm_begin_support,
+)
 from ui.widgets.dashboard_charts import status_label
 
 
@@ -36,6 +40,7 @@ def review_result_label(result) -> str:
 
 class InterventionDetailDialog(QDialog):
     intervention_planned = Signal(int)
+    intervention_started = Signal(int)
 
     REVIEW_HEADERS = (
         "Ngày đánh giá",
@@ -49,16 +54,20 @@ class InterventionDetailDialog(QDialog):
         intervention_id: int,
         intervention_service: InterventionDetailServiceContract,
         planning_service: InterventionPlanningServiceContract | None = None,
+        start_service: InterventionStartServiceContract | None = None,
         user_service: ResponsibleUserServiceContract | None = None,
         plan_dialog_factory=InterventionPlanDialog,
+        start_confirmation=confirm_begin_support,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self.intervention_id = intervention_id
         self.intervention_service = intervention_service
         self.planning_service = planning_service
+        self.start_service = start_service
         self.user_service = user_service
         self.plan_dialog_factory = plan_dialog_factory
+        self.start_confirmation = start_confirmation
         self.detail: InterventionDetail | None = None
         self.setObjectName("interventionDetailDialog")
         self.setWindowTitle("Chi tiết hồ sơ bổ trợ")
@@ -167,6 +176,12 @@ class InterventionDetailDialog(QDialog):
         )
         self.plan_button.setVisible(False)
         self.plan_button.clicked.connect(self.open_plan_dialog)
+        self.start_button = self.close_buttons.addButton(
+            "Bắt đầu bổ trợ",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        self.start_button.setVisible(False)
+        self.start_button.clicked.connect(self.begin_planned_support)
         self.close_buttons.rejected.connect(self.reject)
         root.addWidget(self.close_buttons)
 
@@ -238,6 +253,12 @@ class InterventionDetailDialog(QDialog):
         )
         self.plan_button.setVisible(can_plan)
         self.plan_button.setEnabled(can_plan)
+        can_start = (
+            detail.status.value == "PLANNED"
+            and self.start_service is not None
+        )
+        self.start_button.setVisible(can_start)
+        self.start_button.setEnabled(can_start)
 
     def open_plan_dialog(self) -> bool:
         if (
@@ -262,6 +283,36 @@ class InterventionDetailDialog(QDialog):
         if refreshed is None:
             return False
         self.intervention_planned.emit(self.intervention_id)
+        return True
+
+    def begin_planned_support(self) -> bool:
+        if (
+            self.detail is None
+            or self.detail.status.value != "PLANNED"
+            or self.start_service is None
+        ):
+            return False
+
+        try:
+            started = self.start_confirmation(
+                self,
+                self.start_service,
+                self.intervention_id,
+            )
+        except Exception:
+            self.error_label.setText(
+                "Không thể bắt đầu bổ trợ. Vui lòng thử lại."
+            )
+            self.error_label.setVisible(True)
+            return False
+
+        if not started:
+            return False
+
+        refreshed = self.load_detail()
+        if refreshed is None:
+            return False
+        self.intervention_started.emit(self.intervention_id)
         return True
 
     def _render_reviews(self, detail: InterventionDetail) -> None:

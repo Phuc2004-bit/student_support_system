@@ -14,3 +14,11 @@ class InterventionPlanningServiceContract(Protocol):
         notes: str | None = None,
     ) -> Intervention:
         ...
+
+
+class InterventionStartServiceContract(Protocol):
+    def start_intervention(
+        self,
+        intervention_id: int,
+    ) -> Intervention:
+        ...
