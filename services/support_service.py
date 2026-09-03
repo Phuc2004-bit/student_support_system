@@ -1,8 +1,11 @@
 from dataclasses import replace
 from datetime import date
 
+import pyodbc
+
 from database.connection import DatabaseManager
 from exceptions import (
+    DuplicateError,
     InvalidStateTransitionError,
     MissingSupportRuleError,
     ValidationError,
@@ -480,24 +483,48 @@ class SupportService:
     def review_intervention(
         self,
         intervention_id: int,
-        score_id: int,
-        review_date: date,
+        score_id: int | None = None,
+        review_date: date | None = None,
         notes: str | None = None,
+        *,
+        assessment_id: int | None = None,
+        score_value=None,
     ) -> Intervention:
         if intervention_id <= 0:
             raise ValidationError(
                 "intervention_id không hợp lệ."
             )
 
-        if score_id <= 0:
-            raise ValidationError(
-                "score_id không hợp lệ."
-            )
-
         if review_date is None:
             raise ValidationError(
                 "Ngày đánh giá lại không được để trống."
             )
+
+        create_review_score = score_id is None
+        normalized_score_value = None
+        if create_review_score:
+            from services.score_service import ScoreService
+
+            ScoreService._validate_identifier(
+                "assessment_id",
+                assessment_id,
+            )
+            normalized_score_value = (
+                ScoreService._normalize_score_value(score_value)
+            )
+        else:
+            if (
+                isinstance(score_id, bool)
+                or not isinstance(score_id, int)
+                or score_id <= 0
+            ):
+                raise ValidationError(
+                    "score_id không hợp lệ."
+                )
+            if assessment_id is not None or score_value is not None:
+                raise ValidationError(
+                    "Dữ liệu điểm đánh giá lại không hợp lệ."
+                )
 
         with self.db.transaction() as connection:
             intervention = (
@@ -521,32 +548,41 @@ class SupportService:
                     "mới được đánh giá lại."
                 )
 
-            score = self.score_repository.get_by_id(
-                connection,
-                score_id,
-            )
-
-            if score is None:
-                raise ValidationError(
-                    "Không tìm thấy điểm đánh giá lại."
+            if create_review_score:
+                assessment = (
+                    self.academic_repository
+                    .get_assessment_by_id(
+                        connection,
+                        assessment_id,
+                    )
                 )
-
-            if (
-                score.enrollment_id
-                != intervention.enrollment_id
-            ):
-                raise ValidationError(
-                    "Điểm đánh giá lại không thuộc "
-                    "đúng học sinh của hồ sơ bổ trợ."
-                )
-
-            assessment = (
-                self.academic_repository
-                .get_assessment_by_id(
+            else:
+                score = self.score_repository.get_by_id(
                     connection,
-                    score.assessment_id,
+                    score_id,
                 )
-            )
+
+                if score is None:
+                    raise ValidationError(
+                        "Không tìm thấy điểm đánh giá lại."
+                    )
+
+                if (
+                    score.enrollment_id
+                    != intervention.enrollment_id
+                ):
+                    raise ValidationError(
+                        "Điểm đánh giá lại không thuộc "
+                        "đúng học sinh của hồ sơ bổ trợ."
+                    )
+
+                assessment = (
+                    self.academic_repository
+                    .get_assessment_by_id(
+                        connection,
+                        score.assessment_id,
+                    )
+                )
 
             if assessment is None:
                 raise ValidationError(
@@ -561,6 +597,57 @@ class SupportService:
                     "Điểm đánh giá lại không thuộc "
                     "đúng môn của hồ sơ bổ trợ."
                 )
+
+            trigger_score = self.score_repository.get_by_id(
+                connection,
+                intervention.trigger_score_id,
+            )
+            trigger_assessment = (
+                self.academic_repository.get_assessment_by_id(
+                    connection,
+                    trigger_score.assessment_id,
+                )
+                if trigger_score is not None
+                else None
+            )
+            if (
+                trigger_assessment is None
+                or assessment.school_year_id
+                != trigger_assessment.school_year_id
+            ):
+                raise ValidationError(
+                    "Bài đánh giá lại không thuộc đúng năm học."
+                )
+
+            if create_review_score:
+                existing = (
+                    self.score_repository
+                    .get_by_enrollment_assessment(
+                        connection,
+                        intervention.enrollment_id,
+                        assessment.assessment_id,
+                    )
+                )
+                if existing is not None:
+                    raise DuplicateError(
+                        "Học sinh đã có điểm cho bài đánh giá này."
+                    )
+                try:
+                    score = self.score_repository.create(
+                        connection,
+                        intervention.enrollment_id,
+                        assessment.assessment_id,
+                        normalized_score_value,
+                    )
+                except pyodbc.IntegrityError as exc:
+                    from services.score_service import ScoreService
+
+                    if ScoreService._is_duplicate_database_error(exc):
+                        raise DuplicateError(
+                            "Học sinh đã có điểm cho bài đánh giá này."
+                        ) from exc
+                    raise
+                score_id = score.score_id
 
             rule = self.rule_repository.get_active_rule(
                 connection,
@@ -598,5 +685,8 @@ class SupportService:
                 connection,
                 intervention_id,
                 target_status,
+                required_source_status=(
+                    InterventionStatus.WAITING_REVIEW
+                ),
             )
 

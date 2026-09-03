@@ -20,11 +20,13 @@ from services.support_read_contract import (
 )
 from services.support_contract import (
     InterventionPlanningServiceContract,
+    InterventionReviewServiceContract,
     InterventionStartServiceContract,
     InterventionWaitingReviewServiceContract,
 )
 from services.user_contract import ResponsibleUserServiceContract
 from ui.dialogs.intervention_plan_dialog import InterventionPlanDialog
+from ui.dialogs.intervention_review_dialog import InterventionReviewDialog
 from ui.dialogs.intervention_start_confirmation import (
     confirm_begin_support,
 )
@@ -46,6 +48,7 @@ class InterventionDetailDialog(QDialog):
     intervention_planned = Signal(int)
     intervention_started = Signal(int)
     intervention_waiting_review = Signal(int)
+    intervention_reviewed = Signal(int)
 
     REVIEW_HEADERS = (
         "Ngày đánh giá",
@@ -62,10 +65,13 @@ class InterventionDetailDialog(QDialog):
         start_service: InterventionStartServiceContract | None = None,
         waiting_review_service:
             InterventionWaitingReviewServiceContract | None = None,
+        review_service: InterventionReviewServiceContract | None = None,
+        assessment_service=None,
         user_service: ResponsibleUserServiceContract | None = None,
         plan_dialog_factory=InterventionPlanDialog,
         start_confirmation=confirm_begin_support,
         waiting_review_confirmation=confirm_ready_for_review,
+        review_dialog_factory=InterventionReviewDialog,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -74,10 +80,13 @@ class InterventionDetailDialog(QDialog):
         self.planning_service = planning_service
         self.start_service = start_service
         self.waiting_review_service = waiting_review_service
+        self.review_service = review_service
+        self.assessment_service = assessment_service
         self.user_service = user_service
         self.plan_dialog_factory = plan_dialog_factory
         self.start_confirmation = start_confirmation
         self.waiting_review_confirmation = waiting_review_confirmation
+        self.review_dialog_factory = review_dialog_factory
         self.detail: InterventionDetail | None = None
         self.setObjectName("interventionDetailDialog")
         self.setWindowTitle("Chi tiết hồ sơ bổ trợ")
@@ -200,6 +209,12 @@ class InterventionDetailDialog(QDialog):
         self.waiting_review_button.clicked.connect(
             self.move_to_review_queue
         )
+        self.review_button = self.close_buttons.addButton(
+            "Đánh giá",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        self.review_button.setVisible(False)
+        self.review_button.clicked.connect(self.open_review_dialog)
         self.close_buttons.rejected.connect(self.reject)
         root.addWidget(self.close_buttons)
 
@@ -283,6 +298,13 @@ class InterventionDetailDialog(QDialog):
         )
         self.waiting_review_button.setVisible(can_wait_for_review)
         self.waiting_review_button.setEnabled(can_wait_for_review)
+        can_review = (
+            detail.status.value == "WAITING_REVIEW"
+            and self.review_service is not None
+            and self.assessment_service is not None
+        )
+        self.review_button.setVisible(can_review)
+        self.review_button.setEnabled(can_review)
 
     def open_plan_dialog(self) -> bool:
         if (
@@ -368,6 +390,32 @@ class InterventionDetailDialog(QDialog):
         if refreshed is None:
             return False
         self.intervention_waiting_review.emit(self.intervention_id)
+        return True
+
+    def open_review_dialog(self) -> bool:
+        if (
+            self.detail is None
+            or self.detail.status.value != "WAITING_REVIEW"
+            or self.review_service is None
+            or self.assessment_service is None
+        ):
+            return False
+
+        dialog = self.review_dialog_factory(
+            intervention=self.detail,
+            support_service=self.review_service,
+            assessment_service=self.assessment_service,
+            parent=self,
+        )
+        if not dialog.load_assessments():
+            return False
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return False
+
+        refreshed = self.load_detail()
+        if refreshed is None:
+            return False
+        self.intervention_reviewed.emit(self.intervention_id)
         return True
 
     def _render_reviews(self, detail: InterventionDetail) -> None:
