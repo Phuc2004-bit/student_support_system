@@ -16,6 +16,7 @@ from ui.pages.dashboard_page import DashboardPage
 from ui.pages.placeholder_page import PlaceholderPage
 from ui.pages.students_page import StudentsPage
 from ui.pages.scores_page import ScoresPage
+from ui.pages.support_page import SupportPage
 
 
 def get_app() -> QApplication:
@@ -81,9 +82,9 @@ def test_main_window_uses_real_pages_and_placeholders_for_unbuilt_pages():
 
     assert isinstance(window.pages["students"], StudentsPage)
     assert isinstance(window.pages["scores"], ScoresPage)
+    assert isinstance(window.pages["support"], SupportPage)
 
     for key in (
-        "support",
         "reports",
         "catalogs",
         "system",

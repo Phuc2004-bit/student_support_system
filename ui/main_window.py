@@ -14,6 +14,7 @@ from ui.pages.dashboard_page import DashboardPage
 from ui.pages.placeholder_page import PlaceholderPage
 from ui.pages.students_page import StudentsPage
 from ui.pages.scores_page import ScoresPage
+from ui.pages.support_page import SupportPage
 from ui.widgets.page_stack import PageStack
 from ui.widgets.sidebar import Sidebar
 from ui.widgets.topbar import Topbar
@@ -23,10 +24,8 @@ class MainWindow(QMainWindow):
     """
     Cửa sổ chính.
 
-    Bước 8.3:
-    - page dashboard dùng DashboardPage thật;
-    - các page còn lại vẫn là PlaceholderPage;
-    - giữ nguyên navigation, permission và logout.
+    Đăng ký các page nghiệp vụ đã được triển khai và giữ placeholder
+    cho các khu vực chưa xây dựng.
     """
 
     logout_requested = Signal()
@@ -195,8 +194,29 @@ class MainWindow(QMainWindow):
             scores_page,
         )
 
+        support_page = SupportPage(
+            academic_service=self.app_context.academic_service,
+            support_read_service=self.app_context.report_service,
+            intervention_detail_service=self.app_context.support_service,
+            intervention_planning_service=self.app_context.support_service,
+            intervention_start_service=self.app_context.support_service,
+            intervention_waiting_review_service=(
+                self.app_context.support_service
+            ),
+            intervention_review_service=self.app_context.support_service,
+            intervention_continue_service=self.app_context.support_service,
+            assessment_service=self.app_context.academic_service,
+            user_service=self.app_context.user_service,
+            parent=self.page_stack,
+        )
+        self.pages["support"] = support_page
+        self.page_stack.register_page(
+            "support",
+            support_page,
+        )
+
         for key, title in self.PAGE_TITLES.items():
-            if key in {"dashboard", "students", "scores"}:
+            if key in {"dashboard", "students", "scores", "support"}:
                 continue
 
             page = PlaceholderPage(
@@ -273,6 +293,8 @@ class MainWindow(QMainWindow):
             self._initialize_students()
         elif key == "scores":
             self._initialize_scores()
+        elif key == "support":
+            self._initialize_support()
 
     def _initialize_students(self) -> None:
         students_page = self.pages.get("students")
@@ -283,6 +305,11 @@ class MainWindow(QMainWindow):
         scores_page = self.pages.get("scores")
         if isinstance(scores_page, ScoresPage):
             scores_page.initialize_scores()
+
+    def _initialize_support(self) -> None:
+        support_page = self.pages.get("support")
+        if isinstance(support_page, SupportPage):
+            support_page.initialize_support()
 
     def request_logout(self) -> None:
         if self._logout_in_progress:

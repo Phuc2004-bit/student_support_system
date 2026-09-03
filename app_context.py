@@ -13,6 +13,9 @@ from services.student_list_service import StudentListService
 from services.student_profile_service import StudentProfileService
 from services.student_service import StudentService
 from services.score_service import ScoreService
+from services.report_service import ReportService
+from services.support_service import SupportService
+from services.user_service import UserService
 
 
 @dataclass
@@ -28,6 +31,9 @@ class AppContext:
     enrollment_service: EnrollmentService | None = None
     student_profile_service: StudentProfileService | None = None
     score_service: ScoreService | None = None
+    report_service: ReportService | None = None
+    support_service: SupportService | None = None
+    user_service: UserService | None = None
 
     @property
     def is_authenticated(self) -> bool:
