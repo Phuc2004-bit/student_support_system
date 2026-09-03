@@ -21,11 +21,15 @@ from services.support_read_contract import (
 from services.support_contract import (
     InterventionPlanningServiceContract,
     InterventionStartServiceContract,
+    InterventionWaitingReviewServiceContract,
 )
 from services.user_contract import ResponsibleUserServiceContract
 from ui.dialogs.intervention_plan_dialog import InterventionPlanDialog
 from ui.dialogs.intervention_start_confirmation import (
     confirm_begin_support,
+)
+from ui.dialogs.intervention_waiting_review_confirmation import (
+    confirm_ready_for_review,
 )
 from ui.widgets.dashboard_charts import status_label
 
@@ -41,6 +45,7 @@ def review_result_label(result) -> str:
 class InterventionDetailDialog(QDialog):
     intervention_planned = Signal(int)
     intervention_started = Signal(int)
+    intervention_waiting_review = Signal(int)
 
     REVIEW_HEADERS = (
         "Ngày đánh giá",
@@ -55,9 +60,12 @@ class InterventionDetailDialog(QDialog):
         intervention_service: InterventionDetailServiceContract,
         planning_service: InterventionPlanningServiceContract | None = None,
         start_service: InterventionStartServiceContract | None = None,
+        waiting_review_service:
+            InterventionWaitingReviewServiceContract | None = None,
         user_service: ResponsibleUserServiceContract | None = None,
         plan_dialog_factory=InterventionPlanDialog,
         start_confirmation=confirm_begin_support,
+        waiting_review_confirmation=confirm_ready_for_review,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -65,9 +73,11 @@ class InterventionDetailDialog(QDialog):
         self.intervention_service = intervention_service
         self.planning_service = planning_service
         self.start_service = start_service
+        self.waiting_review_service = waiting_review_service
         self.user_service = user_service
         self.plan_dialog_factory = plan_dialog_factory
         self.start_confirmation = start_confirmation
+        self.waiting_review_confirmation = waiting_review_confirmation
         self.detail: InterventionDetail | None = None
         self.setObjectName("interventionDetailDialog")
         self.setWindowTitle("Chi tiết hồ sơ bổ trợ")
@@ -182,6 +192,14 @@ class InterventionDetailDialog(QDialog):
         )
         self.start_button.setVisible(False)
         self.start_button.clicked.connect(self.begin_planned_support)
+        self.waiting_review_button = self.close_buttons.addButton(
+            "Chuyển chờ đánh giá",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        self.waiting_review_button.setVisible(False)
+        self.waiting_review_button.clicked.connect(
+            self.move_to_review_queue
+        )
         self.close_buttons.rejected.connect(self.reject)
         root.addWidget(self.close_buttons)
 
@@ -259,6 +277,12 @@ class InterventionDetailDialog(QDialog):
         )
         self.start_button.setVisible(can_start)
         self.start_button.setEnabled(can_start)
+        can_wait_for_review = (
+            detail.status.value == "IN_PROGRESS"
+            and self.waiting_review_service is not None
+        )
+        self.waiting_review_button.setVisible(can_wait_for_review)
+        self.waiting_review_button.setEnabled(can_wait_for_review)
 
     def open_plan_dialog(self) -> bool:
         if (
@@ -313,6 +337,37 @@ class InterventionDetailDialog(QDialog):
         if refreshed is None:
             return False
         self.intervention_started.emit(self.intervention_id)
+        return True
+
+    def move_to_review_queue(self) -> bool:
+        if (
+            self.detail is None
+            or self.detail.status.value != "IN_PROGRESS"
+            or self.waiting_review_service is None
+        ):
+            return False
+
+        try:
+            moved = self.waiting_review_confirmation(
+                self,
+                self.waiting_review_service,
+                self.intervention_id,
+            )
+        except Exception:
+            self.error_label.setText(
+                "Không thể chuyển hồ sơ sang chờ đánh giá. "
+                "Vui lòng thử lại."
+            )
+            self.error_label.setVisible(True)
+            return False
+
+        if not moved:
+            return False
+
+        refreshed = self.load_detail()
+        if refreshed is None:
+            return False
+        self.intervention_waiting_review.emit(self.intervention_id)
         return True
 
     def _render_reviews(self, detail: InterventionDetail) -> None:

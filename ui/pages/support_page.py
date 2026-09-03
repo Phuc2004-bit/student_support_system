@@ -24,6 +24,7 @@ from services.support_read_contract import (
 from services.support_contract import (
     InterventionPlanningServiceContract,
     InterventionStartServiceContract,
+    InterventionWaitingReviewServiceContract,
 )
 from services.user_contract import ResponsibleUserServiceContract
 from ui.dialogs.intervention_detail_dialog import (
@@ -72,6 +73,8 @@ class SupportPage(QWidget):
             InterventionPlanningServiceContract | None = None,
         intervention_start_service:
             InterventionStartServiceContract | None = None,
+        intervention_waiting_review_service:
+            InterventionWaitingReviewServiceContract | None = None,
         user_service: ResponsibleUserServiceContract | None = None,
         detail_dialog_factory=InterventionDetailDialog,
         parent: QWidget | None = None,
@@ -82,6 +85,9 @@ class SupportPage(QWidget):
         self.intervention_detail_service = intervention_detail_service
         self.intervention_planning_service = intervention_planning_service
         self.intervention_start_service = intervention_start_service
+        self.intervention_waiting_review_service = (
+            intervention_waiting_review_service
+        )
         self.user_service = user_service
         self.detail_dialog_factory = detail_dialog_factory
         self._items: tuple[SupportReportRow, ...] = ()
@@ -293,6 +299,9 @@ class SupportPage(QWidget):
             intervention_service=self.intervention_detail_service,
             planning_service=self.intervention_planning_service,
             start_service=self.intervention_start_service,
+            waiting_review_service=(
+                self.intervention_waiting_review_service
+            ),
             user_service=self.user_service,
             parent=self,
         )
@@ -302,6 +311,13 @@ class SupportPage(QWidget):
         started_signal = getattr(dialog, "intervention_started", None)
         if started_signal is not None:
             started_signal.connect(self._on_intervention_started)
+        waiting_signal = getattr(
+            dialog,
+            "intervention_waiting_review",
+            None,
+        )
+        if waiting_signal is not None:
+            waiting_signal.connect(self._on_intervention_waiting_review)
         dialog.load_detail()
         dialog.exec()
         return True
@@ -310,6 +326,12 @@ class SupportPage(QWidget):
         self.refresh_support_cases()
 
     def _on_intervention_started(self, _intervention_id: int) -> None:
+        self.refresh_support_cases()
+
+    def _on_intervention_waiting_review(
+        self,
+        _intervention_id: int,
+    ) -> None:
         self.refresh_support_cases()
 
     def _on_filters_changed(

@@ -22,3 +22,11 @@ class InterventionStartServiceContract(Protocol):
         intervention_id: int,
     ) -> Intervention:
         ...
+
+
+class InterventionWaitingReviewServiceContract(Protocol):
+    def mark_waiting_review(
+        self,
+        intervention_id: int,
+    ) -> Intervention:
+        ...

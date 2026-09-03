@@ -369,6 +369,7 @@ class SupportService:
                 connection,
                 intervention_id,
                 InterventionStatus.WAITING_REVIEW,
+                required_source_status=InterventionStatus.IN_PROGRESS,
             )
 
     # =====================================================
