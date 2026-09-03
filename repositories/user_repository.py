@@ -149,6 +149,34 @@ class UserRepository:
             for row in cursor.fetchall()
         ]
 
+    def list_active_teachers(
+        self,
+        connection: pyodbc.Connection,
+    ) -> list[User]:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                user_id,
+                username,
+                password_hash,
+                full_name,
+                role,
+                email,
+                phone,
+                is_active,
+                created_at,
+                updated_at
+            FROM dbo.USERS
+            WHERE role = ?
+              AND is_active = ?
+            ORDER BY full_name, username
+            """,
+            UserRole.TEACHER.value,
+            1,
+        )
+        return [self._map_user(row) for row in cursor.fetchall()]
+
     def set_active(
         self,
         connection: pyodbc.Connection,

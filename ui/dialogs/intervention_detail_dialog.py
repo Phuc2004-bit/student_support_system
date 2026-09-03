@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialog,
@@ -17,6 +18,11 @@ from models.dto import InterventionDetail
 from services.support_read_contract import (
     InterventionDetailServiceContract,
 )
+from services.support_contract import (
+    InterventionPlanningServiceContract,
+)
+from services.user_contract import ResponsibleUserServiceContract
+from ui.dialogs.intervention_plan_dialog import InterventionPlanDialog
 from ui.widgets.dashboard_charts import status_label
 
 
@@ -29,6 +35,8 @@ def review_result_label(result) -> str:
 
 
 class InterventionDetailDialog(QDialog):
+    intervention_planned = Signal(int)
+
     REVIEW_HEADERS = (
         "Ngày đánh giá",
         "Điểm",
@@ -40,11 +48,17 @@ class InterventionDetailDialog(QDialog):
         self,
         intervention_id: int,
         intervention_service: InterventionDetailServiceContract,
+        planning_service: InterventionPlanningServiceContract | None = None,
+        user_service: ResponsibleUserServiceContract | None = None,
+        plan_dialog_factory=InterventionPlanDialog,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self.intervention_id = intervention_id
         self.intervention_service = intervention_service
+        self.planning_service = planning_service
+        self.user_service = user_service
+        self.plan_dialog_factory = plan_dialog_factory
         self.detail: InterventionDetail | None = None
         self.setObjectName("interventionDetailDialog")
         self.setWindowTitle("Chi tiết hồ sơ bổ trợ")
@@ -147,6 +161,12 @@ class InterventionDetailDialog(QDialog):
             QDialogButtonBox.StandardButton.Close,
             parent=self,
         )
+        self.plan_button = self.close_buttons.addButton(
+            "Lập kế hoạch",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        self.plan_button.setVisible(False)
+        self.plan_button.clicked.connect(self.open_plan_dialog)
         self.close_buttons.rejected.connect(self.reject)
         root.addWidget(self.close_buttons)
 
@@ -211,6 +231,38 @@ class InterventionDetailDialog(QDialog):
             detail.updated_at.strftime("%d/%m/%Y %H:%M")
         )
         self._render_reviews(detail)
+        can_plan = (
+            detail.status.value == "DETECTED"
+            and self.planning_service is not None
+            and self.user_service is not None
+        )
+        self.plan_button.setVisible(can_plan)
+        self.plan_button.setEnabled(can_plan)
+
+    def open_plan_dialog(self) -> bool:
+        if (
+            self.detail is None
+            or self.detail.status.value != "DETECTED"
+            or self.planning_service is None
+            or self.user_service is None
+        ):
+            return False
+
+        dialog = self.plan_dialog_factory(
+            intervention=self.detail,
+            support_service=self.planning_service,
+            user_service=self.user_service,
+            parent=self,
+        )
+        dialog.load_responsible_users()
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return False
+
+        refreshed = self.load_detail()
+        if refreshed is None:
+            return False
+        self.intervention_planned.emit(self.intervention_id)
+        return True
 
     def _render_reviews(self, detail: InterventionDetail) -> None:
         reviews = detail.reviews

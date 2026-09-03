@@ -135,6 +135,12 @@ class UserService:
                 connection
             )
 
+    def list_active_teachers(self) -> list[User]:
+        with self.db.transaction() as connection:
+            return self.user_repository.list_active_teachers(
+                connection
+            )
+
     # =====================================================
     # UPDATE PROFILE
     # =====================================================

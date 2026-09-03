@@ -21,6 +21,10 @@ from services.support_read_contract import (
     InterventionDetailServiceContract,
     SupportReadServiceContract,
 )
+from services.support_contract import (
+    InterventionPlanningServiceContract,
+)
+from services.user_contract import ResponsibleUserServiceContract
 from ui.dialogs.intervention_detail_dialog import (
     InterventionDetailDialog,
 )
@@ -63,6 +67,9 @@ class SupportPage(QWidget):
         support_read_service: SupportReadServiceContract | None = None,
         intervention_detail_service:
             InterventionDetailServiceContract | None = None,
+        intervention_planning_service:
+            InterventionPlanningServiceContract | None = None,
+        user_service: ResponsibleUserServiceContract | None = None,
         detail_dialog_factory=InterventionDetailDialog,
         parent: QWidget | None = None,
     ) -> None:
@@ -70,6 +77,8 @@ class SupportPage(QWidget):
         self.academic_service = academic_service
         self.support_read_service = support_read_service
         self.intervention_detail_service = intervention_detail_service
+        self.intervention_planning_service = intervention_planning_service
+        self.user_service = user_service
         self.detail_dialog_factory = detail_dialog_factory
         self._items: tuple[SupportReportRow, ...] = ()
         self._load_state = self.STATE_IDLE
@@ -278,11 +287,19 @@ class SupportPage(QWidget):
         dialog = self.detail_dialog_factory(
             intervention_id=intervention_id,
             intervention_service=self.intervention_detail_service,
+            planning_service=self.intervention_planning_service,
+            user_service=self.user_service,
             parent=self,
         )
+        planned_signal = getattr(dialog, "intervention_planned", None)
+        if planned_signal is not None:
+            planned_signal.connect(self._on_intervention_planned)
         dialog.load_detail()
         dialog.exec()
         return True
+
+    def _on_intervention_planned(self, _intervention_id: int) -> None:
+        self.refresh_support_cases()
 
     def _on_filters_changed(
         self,
