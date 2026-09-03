@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -33,6 +33,7 @@ class InterventionReviewItem:
     result: ReviewResult
     notes: str | None
     created_at: datetime
+    score: Decimal | None = field(default=None, compare=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +58,11 @@ class InterventionDetail:
     created_at: datetime
     updated_at: datetime
     reviews: tuple[InterventionReviewItem, ...]
+    grade_number: int | None = None
+    school_year_id: int | None = None
+    school_year_name: str | None = None
+    subject_code: str | None = None
+    trigger_assessment_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

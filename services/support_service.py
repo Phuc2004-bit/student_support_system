@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 
 from database.connection import DatabaseManager
@@ -6,7 +7,7 @@ from exceptions import (
     MissingSupportRuleError,
     ValidationError,
 )
-from models.dto import Intervention
+from models.dto import Intervention, InterventionDetail
 from models.enums import (
     InterventionStatus,
     ReviewResult,
@@ -406,6 +407,35 @@ class SupportService:
                 )
 
             return intervention
+
+    def get_intervention_detail(
+        self,
+        intervention_id: int,
+    ) -> InterventionDetail:
+        if (
+            isinstance(intervention_id, bool)
+            or not isinstance(intervention_id, int)
+            or intervention_id <= 0
+        ):
+            raise ValidationError(
+                "intervention_id không hợp lệ."
+            )
+
+        with self.db.transaction() as connection:
+            detail = self.intervention_repository.get_detail(
+                connection,
+                intervention_id,
+            )
+            if detail is None:
+                raise ValidationError(
+                    "Không tìm thấy hồ sơ bổ trợ."
+                )
+
+            reviews = self.intervention_repository.list_reviews(
+                connection,
+                intervention_id,
+            )
+            return replace(detail, reviews=tuple(reviews))
 
     def get_open_intervention(
         self,

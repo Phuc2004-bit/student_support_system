@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from models.dto import InterventionDetail
 from models.dto.report_dto import SupportReportRow
 from models.enums import InterventionStatus
 
@@ -15,4 +16,12 @@ class SupportReadServiceContract(Protocol):
         subject_id: int | None = None,
         status: str | InterventionStatus | None = None,
     ) -> list[SupportReportRow]:
+        ...
+
+
+class InterventionDetailServiceContract(Protocol):
+    def get_intervention_detail(
+        self,
+        intervention_id: int,
+    ) -> InterventionDetail:
         ...

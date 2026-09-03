@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -17,7 +17,13 @@ from PySide6.QtWidgets import (
 )
 
 from models.dto.report_dto import SupportReportRow
-from services.support_read_contract import SupportReadServiceContract
+from services.support_read_contract import (
+    InterventionDetailServiceContract,
+    SupportReadServiceContract,
+)
+from ui.dialogs.intervention_detail_dialog import (
+    InterventionDetailDialog,
+)
 from ui.widgets.dashboard_charts import status_label
 from ui.widgets.support_filter_widget import (
     SupportFilterSelection,
@@ -26,6 +32,8 @@ from ui.widgets.support_filter_widget import (
 
 
 class SupportPage(QWidget):
+    intervention_requested = Signal(int)
+
     STATE_IDLE = "idle"
     STATE_LOADING = "loading"
     STATE_SUCCESS = "success"
@@ -53,11 +61,16 @@ class SupportPage(QWidget):
         self,
         academic_service=None,
         support_read_service: SupportReadServiceContract | None = None,
+        intervention_detail_service:
+            InterventionDetailServiceContract | None = None,
+        detail_dialog_factory=InterventionDetailDialog,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.academic_service = academic_service
         self.support_read_service = support_read_service
+        self.intervention_detail_service = intervention_detail_service
+        self.detail_dialog_factory = detail_dialog_factory
         self._items: tuple[SupportReportRow, ...] = ()
         self._load_state = self.STATE_IDLE
         self.setObjectName("supportPage")
@@ -151,6 +164,9 @@ class SupportPage(QWidget):
         self.refresh_button.clicked.connect(
             self.refresh_support_cases
         )
+        self.table.cellDoubleClicked.connect(
+            self._on_row_activated
+        )
 
     def initialize_support(self) -> bool:
         if self.academic_service is None:
@@ -242,6 +258,31 @@ class SupportPage(QWidget):
         if item is None:
             return None
         return item.data(Qt.ItemDataRole.UserRole)
+
+    def _on_row_activated(self, row: int, _column: int) -> None:
+        intervention_id = self.intervention_id_at_row(row)
+        if intervention_id is not None:
+            self.open_intervention_detail(intervention_id)
+
+    def open_intervention_detail(
+        self,
+        intervention_id: int,
+    ) -> bool:
+        self.intervention_requested.emit(intervention_id)
+        if self.intervention_detail_service is None:
+            self.state_label.setText(
+                "Chưa có dịch vụ đọc chi tiết hồ sơ bổ trợ."
+            )
+            return False
+
+        dialog = self.detail_dialog_factory(
+            intervention_id=intervention_id,
+            intervention_service=self.intervention_detail_service,
+            parent=self,
+        )
+        dialog.load_detail()
+        dialog.exec()
+        return True
 
     def _on_filters_changed(
         self,

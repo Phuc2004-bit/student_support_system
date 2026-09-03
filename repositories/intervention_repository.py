@@ -5,6 +5,7 @@ import pyodbc
 
 from models.dto import (
     Intervention,
+    InterventionDetail,
     InterventionHistoryItem,
     InterventionReviewItem,
 )
@@ -136,6 +137,67 @@ class InterventionRepository:
             if row is not None
             else None
         )
+
+    def get_detail(
+        self,
+        connection: pyodbc.Connection,
+        intervention_id: int,
+    ) -> InterventionDetail | None:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                i.intervention_id,
+                i.enrollment_id,
+                e.student_id,
+                student.student_code,
+                student.full_name,
+                cls.class_name,
+                i.subject_id,
+                subject.subject_name,
+                i.trigger_score_id,
+                trigger_score.score AS trigger_score,
+                i.responsible_user_id,
+                responsible_user.full_name AS responsible_user_name,
+                i.detected_date,
+                i.start_date,
+                i.status,
+                i.support_method,
+                i.notes,
+                i.created_at,
+                i.updated_at,
+                grade.grade_number,
+                school_year.school_year_id,
+                school_year.year_name AS school_year_name,
+                subject.subject_code,
+                trigger_assessment.assessment_name
+                    AS trigger_assessment_name
+            FROM dbo.INTERVENTIONS AS i
+            INNER JOIN dbo.STUDENT_ENROLLMENTS AS e
+                ON e.enrollment_id = i.enrollment_id
+            INNER JOIN dbo.STUDENTS AS student
+                ON student.student_id = e.student_id
+            INNER JOIN dbo.CLASSES AS cls
+                ON cls.class_id = e.class_id
+            INNER JOIN dbo.GRADES AS grade
+                ON grade.grade_id = cls.grade_id
+            INNER JOIN dbo.SCHOOL_YEARS AS school_year
+                ON school_year.school_year_id = cls.school_year_id
+            INNER JOIN dbo.SUBJECTS AS subject
+                ON subject.subject_id = i.subject_id
+            INNER JOIN dbo.SCORES AS trigger_score
+                ON trigger_score.score_id = i.trigger_score_id
+            INNER JOIN dbo.ASSESSMENTS AS trigger_assessment
+                ON trigger_assessment.assessment_id
+                    = trigger_score.assessment_id
+            LEFT JOIN dbo.USERS AS responsible_user
+                ON responsible_user.user_id = i.responsible_user_id
+            WHERE i.intervention_id = ?
+            """,
+            intervention_id,
+        )
+        row = cursor.fetchone()
+        return self._map_detail(row) if row is not None else None
 
     def get_open(
         self,
@@ -326,16 +388,19 @@ class InterventionRepository:
         cursor.execute(
             """
             SELECT
-                review_id,
-                intervention_id,
-                score_id,
-                review_date,
-                result,
-                notes,
-                created_at
-            FROM dbo.INTERVENTION_REVIEWS
-            WHERE intervention_id = ?
-            ORDER BY review_date, review_id
+                review.review_id,
+                review.intervention_id,
+                review.score_id,
+                review.review_date,
+                review.result,
+                review.notes,
+                review.created_at,
+                score.score
+            FROM dbo.INTERVENTION_REVIEWS AS review
+            INNER JOIN dbo.SCORES AS score
+                ON score.score_id = review.score_id
+            WHERE review.intervention_id = ?
+            ORDER BY review.review_date, review.review_id
             """,
             intervention_id,
         )
@@ -396,6 +461,7 @@ class InterventionRepository:
 
     @staticmethod
     def _map_review(row) -> InterventionReviewItem:
+        score = getattr(row, "score", None)
         return InterventionReviewItem(
             review_id=row.review_id,
             intervention_id=row.intervention_id,
@@ -404,6 +470,37 @@ class InterventionRepository:
             result=ReviewResult(row.result),
             notes=row.notes,
             created_at=row.created_at,
+            score=(Decimal(str(score)) if score is not None else None),
+        )
+
+    @staticmethod
+    def _map_detail(row) -> InterventionDetail:
+        return InterventionDetail(
+            intervention_id=row.intervention_id,
+            enrollment_id=row.enrollment_id,
+            student_id=str(row.student_id),
+            student_code=row.student_code,
+            full_name=row.full_name,
+            class_name=row.class_name,
+            subject_id=row.subject_id,
+            subject_name=row.subject_name,
+            trigger_score_id=row.trigger_score_id,
+            trigger_score=Decimal(str(row.trigger_score)),
+            responsible_user_id=row.responsible_user_id,
+            responsible_user_name=row.responsible_user_name,
+            detected_date=row.detected_date,
+            start_date=row.start_date,
+            status=InterventionStatus(row.status),
+            support_method=row.support_method,
+            notes=row.notes,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            reviews=(),
+            grade_number=row.grade_number,
+            school_year_id=row.school_year_id,
+            school_year_name=row.school_year_name,
+            subject_code=row.subject_code,
+            trigger_assessment_name=row.trigger_assessment_name,
         )
 
     @staticmethod
