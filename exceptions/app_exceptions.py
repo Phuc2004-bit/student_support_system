@@ -36,3 +36,7 @@ class MissingSupportRuleError(BusinessRuleError):
 
 class DatabaseError(AppError):
     """Lỗi thao tác với cơ sở dữ liệu."""
+
+
+class ReportExportError(AppError):
+    """Lỗi tạo file báo cáo."""

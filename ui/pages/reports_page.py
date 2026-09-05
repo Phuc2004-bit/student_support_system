@@ -17,12 +17,13 @@ from PySide6.QtWidgets import (
 
 from models.dto.dashboard_dto import DashboardStatusItem
 from models.dto.report_dto import SupportReportData
-from ui.widgets.dashboard_charts import DashboardBarChart, status_label
+from ui.widgets.dashboard_charts import DashboardBarChart
 from ui.widgets.kpi_card import KpiCard
 from ui.widgets.support_filter_widget import (
     SupportFilterSelection,
     SupportFilterWidget,
 )
+from utils.report_labels import review_result_label, status_label
 
 
 class ReportsPage(QWidget):
@@ -320,7 +321,7 @@ class ReportsPage(QWidget):
                     if item.latest_review_score is not None
                     else "-"
                 ),
-                self._review_result_label(item.latest_review_result),
+                review_result_label(item.latest_review_result),
             )
             for column, value in enumerate(values):
                 table_item = QTableWidgetItem(value)
@@ -389,13 +390,6 @@ class ReportsPage(QWidget):
         if item is None:
             return None
         return item.data(Qt.ItemDataRole.UserRole)
-
-    @staticmethod
-    def _review_result_label(result: str | None) -> str:
-        return {
-            "PASSED": "Đạt",
-            "NOT_PASSED": "Chưa đạt",
-        }.get(result, "-" if result is None else result)
 
     def _on_filters_changed(
         self,

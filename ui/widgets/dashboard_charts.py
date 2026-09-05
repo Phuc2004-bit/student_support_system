@@ -7,20 +7,7 @@ from matplotlib.figure import Figure
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 from models.dto.dashboard_dto import DashboardStatusItem
-
-
-STATUS_LABELS = {
-    "DETECTED": "Mới phát hiện",
-    "PLANNED": "Đã lập kế hoạch",
-    "IN_PROGRESS": "Đang bổ trợ",
-    "WAITING_REVIEW": "Chờ đánh giá",
-    "CONTINUE": "Cần tiếp tục",
-    "COMPLETED": "Đã đạt ngưỡng",
-}
-
-
-def status_label(status: str) -> str:
-    return STATUS_LABELS.get(status, status)
+from utils.report_labels import status_label
 
 
 class DashboardBarChart(QWidget):

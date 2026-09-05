@@ -8,6 +8,7 @@ from exceptions.app_exceptions import (
     MissingSupportRuleError,
     NotFoundError,
     PermissionDeniedError,
+    ReportExportError,
     ValidationError,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "MissingSupportRuleError",
     "NotFoundError",
     "PermissionDeniedError",
+    "ReportExportError",
     "ValidationError",
 ]
