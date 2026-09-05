@@ -12,6 +12,7 @@ from services.score_import_parser import ScoreImportWorkbookParser
 from services.score_import_template_service import ScoreImportTemplateService
 from services.score_import_preview_service import ScoreImportPreviewService
 from services.score_import_commit_service import ScoreImportCommitService
+from services.data_export_service import StudentExportService, ScoreExportService
 
 
 __all__ = [
@@ -29,4 +30,6 @@ __all__ = [
     "ScoreImportTemplateService",
     "ScoreImportPreviewService",
     "ScoreImportCommitService",
+    "StudentExportService",
+    "ScoreExportService",
 ]

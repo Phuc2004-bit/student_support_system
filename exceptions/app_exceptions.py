@@ -44,3 +44,7 @@ class ScoreImportError(AppError):
 
 class ReportExportError(AppError):
     """Lỗi tạo file báo cáo."""
+
+
+class DataExportError(AppError):
+    """Lỗi tạo file xuất dữ liệu học sinh hoặc điểm."""

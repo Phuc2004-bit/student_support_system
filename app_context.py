@@ -17,6 +17,7 @@ from services.score_import_parser import ScoreImportWorkbookParser
 from services.score_import_template_service import ScoreImportTemplateService
 from services.score_import_preview_service import ScoreImportPreviewService
 from services.score_import_commit_service import ScoreImportCommitService
+from services.data_export_service import StudentExportService, ScoreExportService
 from services.report_service import ReportService
 from services.support_service import SupportService
 from services.user_service import UserService
@@ -42,6 +43,8 @@ class AppContext:
     report_service: ReportService | None = None
     support_service: SupportService | None = None
     user_service: UserService | None = None
+    student_export_service: StudentExportService | None = None
+    score_export_service: ScoreExportService | None = None
 
     @property
     def is_authenticated(self) -> bool:

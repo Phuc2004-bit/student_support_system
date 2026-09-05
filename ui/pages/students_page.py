@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QFileDialog,
     QLabel,
     QMessageBox,
     QPushButton,
@@ -19,6 +20,8 @@ from PySide6.QtWidgets import (
 from models.dto.enrollment import EnrollmentListItem
 from models.dto.student_filter import StudentFilter
 from models.dto.student_list import StudentListItem
+from models.dto.data_export import StudentExportContext
+from services.data_export_contract import StudentExportServiceContract
 from services.enrollment_contract import EnrollmentServiceContract
 from services.student_contract import (
     StudentListServiceContract,
@@ -79,6 +82,7 @@ class StudentsPage(QWidget):
         student_profile_service: StudentProfileServiceContract | None = None,
         profile_dialog_factory=StudentProfileDialog,
         parent: QWidget | None = None,
+        student_export_service: StudentExportServiceContract | None = None,
     ) -> None:
         super().__init__(parent)
 
@@ -90,6 +94,7 @@ class StudentsPage(QWidget):
         self.enrollment_dialog_factory = enrollment_dialog_factory
         self.student_profile_service = student_profile_service
         self.profile_dialog_factory = profile_dialog_factory
+        self.student_export_service = student_export_service
 
         self._items: tuple[StudentListItem, ...] = ()
         self._last_filter = StudentFilter()
@@ -140,6 +145,8 @@ class StudentsPage(QWidget):
         row.addStretch(1)
 
         self.refresh_button = QPushButton("Làm mới", self)
+        self.export_button = QPushButton("Xuất Excel", self)
+        self.export_button.setObjectName("exportStudentsExcelButton")
         self.edit_button = QPushButton("Sửa học sinh", self)
         self.profile_button = QPushButton("Xem hồ sơ", self)
         self.add_button = QPushButton("+ Thêm học sinh", self)
@@ -147,6 +154,7 @@ class StudentsPage(QWidget):
         self.profile_button.setEnabled(False)
 
         row.addWidget(self.refresh_button)
+        row.addWidget(self.export_button)
         row.addWidget(self.edit_button)
         row.addWidget(self.profile_button)
         row.addWidget(self.add_button)
@@ -214,6 +222,9 @@ class StudentsPage(QWidget):
         self.refresh_button.clicked.connect(
             self.refresh_students
         )
+        self.export_button.clicked.connect(
+            lambda _checked=False: self.export_students()
+        )
         self.filter_widget.filters_changed.connect(
             self._on_filters_changed
         )
@@ -239,6 +250,59 @@ class StudentsPage(QWidget):
 
     def load_students(self) -> bool:
         return self.refresh_students()
+
+    def student_export_context(self) -> StudentExportContext:
+        filters = self.filter_widget.current_value()
+        return StudentExportContext(
+            filters=filters,
+            school_year_name=(
+                self.filter_widget.school_year_combo.currentText()
+                if filters.school_year_id is not None
+                else None
+            ),
+            grade_name=(
+                self.filter_widget.grade_combo.currentText()
+                if filters.grade_id is not None
+                else None
+            ),
+            class_name=(
+                self.filter_widget.class_combo.currentText()
+                if filters.class_id is not None
+                else None
+            ),
+        )
+
+    def export_students(self) -> bool:
+        if self.student_export_service is None:
+            self._show_error(
+                "Xuất Excel",
+                RuntimeError("Chưa có dịch vụ xuất danh sách học sinh."),
+            )
+            return False
+        output_path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Xuất danh sách học sinh",
+            "danh_sach_hoc_sinh.xlsx",
+            "Excel Workbook (*.xlsx)",
+        )
+        if not output_path:
+            return False
+        if not output_path.lower().endswith(".xlsx"):
+            output_path += ".xlsx"
+        try:
+            self.student_export_service.export_xlsx(
+                self.student_export_context(),
+                output_path,
+            )
+        except Exception as exc:
+            self._show_error("Không thể xuất Excel", exc)
+            return False
+        QMessageBox.information(
+            self,
+            "Xuất Excel",
+            "Đã xuất danh sách học sinh thành công.",
+        )
+        return True
 
     def refresh_students(self) -> bool:
         self.refresh_requested.emit()

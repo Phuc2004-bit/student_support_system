@@ -15,6 +15,7 @@ from services.score_import_parser import ScoreImportWorkbookParser
 from services.score_import_template_service import ScoreImportTemplateService
 from services.score_import_preview_service import ScoreImportPreviewService
 from services.score_import_commit_service import ScoreImportCommitService
+from services.data_export_service import StudentExportService, ScoreExportService
 from services.report_service import ReportService
 from services.support_service import SupportService
 from services.user_service import UserService
@@ -49,6 +50,8 @@ def build_app_context() -> AppContext:
         preview_service=score_import_preview_service,
         score_service=score_service,
     )
+    student_export_service = StudentExportService(student_list_service)
+    score_export_service = ScoreExportService(score_service)
     report_service = ReportService(db=db)
     support_service = SupportService(db=db)
     user_service = UserService(db=db)
@@ -68,6 +71,8 @@ def build_app_context() -> AppContext:
         score_import_template_service=score_import_template_service,
         score_import_preview_service=score_import_preview_service,
         score_import_commit_service=score_import_commit_service,
+        student_export_service=student_export_service,
+        score_export_service=score_export_service,
         report_service=report_service,
         support_service=support_service,
         user_service=user_service,

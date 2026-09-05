@@ -40,7 +40,8 @@ class StudentListRepository:
                 s.date_of_birth, s.gender,
                 current_class.class_name,
                 current_class.grade_number,
-                s.status
+                s.status,
+                current_class.school_year_name
             FROM dbo.STUDENTS s
             OUTER APPLY
             (
@@ -49,7 +50,8 @@ class StudentListRepository:
                     c.class_name,
                     c.grade_id,
                     g.grade_number,
-                    sy.school_year_id
+                    sy.school_year_id,
+                    sy.year_name AS school_year_name
                 FROM dbo.STUDENT_ENROLLMENTS e
                 INNER JOIN dbo.CLASSES c ON c.class_id = e.class_id
                 INNER JOIN dbo.GRADES g ON g.grade_id = c.grade_id
@@ -80,4 +82,5 @@ class StudentListRepository:
             current_class_name=row.class_name,
             current_grade_number=row.grade_number,
             status=StudentStatus(row.status),
+            current_school_year_name=row.school_year_name,
         )

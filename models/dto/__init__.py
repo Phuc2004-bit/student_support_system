@@ -44,6 +44,14 @@ from models.dto.score_import import (
     ScoreImportTransactionResult,
     ScoreImportWorkbook,
 )
+from models.dto.data_export import (
+    ScoreExportContext,
+    ScoreExportData,
+    ScoreExportRow,
+    StudentExportContext,
+    StudentExportData,
+    StudentExportRow,
+)
 
 __all__ = [
     "Enrollment",
@@ -85,4 +93,10 @@ __all__ = [
     "ScoreImportTemplateStudent",
     "ScoreImportTransactionResult",
     "ScoreImportWorkbook",
+    "ScoreExportContext",
+    "ScoreExportData",
+    "ScoreExportRow",
+    "StudentExportContext",
+    "StudentExportData",
+    "StudentExportRow",
 ]

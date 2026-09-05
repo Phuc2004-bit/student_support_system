@@ -14,3 +14,4 @@ class StudentListItem:
     current_class_name: str | None
     current_grade_number: int | None
     status: StudentStatus
+    current_school_year_name: str | None = None

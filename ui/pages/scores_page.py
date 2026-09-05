@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
 from models.dto.enrollment import EnrollmentListItem
 from models.dto.score import ScoreCreateData, ScoreRosterItem
 from models.dto.score_import import ScoreImportContext, ScoreImportTemplateStudent
+from models.dto.data_export import ScoreExportContext
+from services.data_export_contract import ScoreExportServiceContract
 from services.enrollment_contract import EnrollmentServiceContract
 from services.score_contract import (
     ScoreServiceContract as ScoreWriterContract,
@@ -80,6 +82,7 @@ class ScoresPage(QWidget):
         score_import_preview_service=None,
         score_import_commit_service=None,
         parent=None,
+        score_export_service: ScoreExportServiceContract | None = None,
     ):
         super().__init__(parent)
         self.academic_service = academic_service
@@ -89,6 +92,7 @@ class ScoresPage(QWidget):
         self.score_import_template_service = score_import_template_service
         self.score_import_preview_service = score_import_preview_service
         self.score_import_commit_service = score_import_commit_service
+        self.score_export_service = score_export_service
         self._enrollments: tuple[EnrollmentListItem, ...] = ()
         self._score_rows: tuple[ScoreRosterItem, ...] = ()
         self._saved_enrollment_ids: set[int] = set()
@@ -112,6 +116,9 @@ class ScoresPage(QWidget):
 
         import_actions = QHBoxLayout()
         import_actions.addStretch(1)
+        self.export_button = QPushButton("Xuất Excel", self)
+        self.export_button.setObjectName("exportScoresExcelButton")
+        import_actions.addWidget(self.export_button)
         self.download_template_button = QPushButton("Tải file mẫu", self)
         self.download_template_button.setObjectName(
             "downloadScoreImportTemplateButton"
@@ -219,6 +226,9 @@ class ScoresPage(QWidget):
         self.import_excel_button.clicked.connect(
             lambda _checked=False: self.import_scores_from_excel()
         )
+        self.export_button.clicked.connect(
+            lambda _checked=False: self.export_scores()
+        )
         self._on_context_changed(
             self.context_filter.current_value()
         )
@@ -249,6 +259,57 @@ class ScoresPage(QWidget):
             assessment_id=selected.assessment_id,
             assessment_name=self.assessment_combo.currentText(),
         )
+
+    def score_export_context(self) -> ScoreExportContext | None:
+        selected = self.current_context()
+        if not selected.is_complete:
+            self.context_status_label.setText(
+                "Vui lòng chọn đầy đủ năm học, khối, lớp, môn học và bài đánh giá."
+            )
+            return None
+        return ScoreExportContext(
+            school_year_id=selected.school_year_id,
+            school_year_name=self.school_year_combo.currentText(),
+            class_id=selected.class_id,
+            class_name=self.class_combo.currentText(),
+            subject_id=selected.subject_id,
+            subject_name=self.subject_combo.currentText(),
+            assessment_id=selected.assessment_id,
+            assessment_name=self.assessment_combo.currentText(),
+        )
+
+    def export_scores(self) -> bool:
+        context = self.score_export_context()
+        if context is None:
+            return False
+        if self.score_export_service is None:
+            self._show_export_error("Chưa có dịch vụ xuất bảng điểm.")
+            return False
+        output_path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Xuất bảng điểm",
+            "bang_diem.xlsx",
+            "Excel Workbook (*.xlsx)",
+        )
+        if not output_path:
+            return False
+        if not output_path.lower().endswith(".xlsx"):
+            output_path += ".xlsx"
+        try:
+            self.score_export_service.export_xlsx(context, output_path)
+        except Exception as exc:
+            self._show_export_error(self._error_message(exc))
+            return False
+        QMessageBox.information(
+            self,
+            "Xuất Excel",
+            "Đã xuất bảng điểm thành công.",
+        )
+        return True
+
+    def _show_export_error(self, message: str) -> None:
+        self.context_status_label.setText(message)
+        QMessageBox.warning(self, "Xuất bảng điểm", message)
 
     def download_import_template(self) -> bool:
         context = self.score_import_context()

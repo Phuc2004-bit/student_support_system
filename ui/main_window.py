@@ -175,6 +175,7 @@ class MainWindow(QMainWindow):
             student_profile_service=(
                 self.app_context.student_profile_service
             ),
+            student_export_service=self.app_context.student_export_service,
             parent=self.page_stack,
         )
         self.pages["students"] = students_page
@@ -197,6 +198,7 @@ class MainWindow(QMainWindow):
             score_import_commit_service=(
                 self.app_context.score_import_commit_service
             ),
+            score_export_service=self.app_context.score_export_service,
             parent=self.page_stack,
         )
         self.pages["scores"] = scores_page
