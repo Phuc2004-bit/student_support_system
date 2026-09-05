@@ -31,6 +31,7 @@ from models.dto.import_dto import (
     ScoreImportPreviewRow,
     ScoreImportRawRow,
 )
+from models.dto.catalog import Grade, SchoolClass, SchoolYear
 
 __all__ = [
     "Enrollment",
@@ -57,4 +58,7 @@ __all__ = [
     "ScoreImportPreview",
     "ScoreImportPreviewRow",
     "ScoreImportRawRow",
+    "SchoolYear",
+    "Grade",
+    "SchoolClass",
 ]

@@ -2,7 +2,7 @@ from datetime import date
 
 import pyodbc
 
-from models.dto import Assessment
+from models.dto import Assessment, SchoolClass
 from models.enums import AssessmentStatus
 
 
@@ -65,6 +65,66 @@ class AcademicRepository:
             row.grade_id,
             row.grade_number,
             row.grade_name,
+        )
+
+    def get_grade_by_id(
+        self,
+        connection: pyodbc.Connection,
+        grade_id: int,
+    ):
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                grade_id,
+                grade_number,
+                grade_name
+            FROM dbo.GRADES
+            WHERE grade_id = ?
+            """,
+            grade_id,
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return (row.grade_id, row.grade_number, row.grade_name)
+
+    def create_grade(
+        self,
+        connection: pyodbc.Connection,
+        grade_number: int,
+        grade_name: str | None,
+    ) -> int:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO dbo.GRADES
+            (
+                grade_number,
+                grade_name
+            )
+            OUTPUT INSERTED.grade_id
+            VALUES (?, ?)
+            """,
+            grade_number,
+            grade_name,
+        )
+        return int(cursor.fetchone()[0])
+
+    def update_grade_name(
+        self,
+        connection: pyodbc.Connection,
+        grade_id: int,
+        grade_name: str | None,
+    ) -> None:
+        connection.cursor().execute(
+            """
+            UPDATE dbo.GRADES
+            SET grade_name = ?
+            WHERE grade_id = ?
+            """,
+            grade_name,
+            grade_id,
         )
 
     # =====================================================
@@ -166,6 +226,74 @@ class AcademicRepository:
             row.start_date,
             row.end_date,
             bool(row.is_current),
+        )
+
+    def get_school_year_by_id(
+        self,
+        connection: pyodbc.Connection,
+        school_year_id: int,
+    ):
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                school_year_id,
+                year_name,
+                start_date,
+                end_date,
+                is_current
+            FROM dbo.SCHOOL_YEARS
+            WHERE school_year_id = ?
+            """,
+            school_year_id,
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return (
+            row.school_year_id,
+            row.year_name,
+            row.start_date,
+            row.end_date,
+            bool(row.is_current),
+        )
+
+    def clear_current_school_years(
+        self,
+        connection: pyodbc.Connection,
+    ) -> None:
+        connection.cursor().execute(
+            """
+            UPDATE dbo.SCHOOL_YEARS
+            SET is_current = 0
+            WHERE is_current = 1
+            """
+        )
+
+    def update_school_year(
+        self,
+        connection: pyodbc.Connection,
+        school_year_id: int,
+        year_name: str,
+        start_date: date,
+        end_date: date,
+        is_current: bool,
+    ) -> None:
+        connection.cursor().execute(
+            """
+            UPDATE dbo.SCHOOL_YEARS
+            SET
+                year_name = ?,
+                start_date = ?,
+                end_date = ?,
+                is_current = ?
+            WHERE school_year_id = ?
+            """,
+            year_name,
+            start_date,
+            end_date,
+            int(is_current),
+            school_year_id,
         )
 
     # =====================================================
@@ -281,10 +409,121 @@ class AcademicRepository:
                 row.class_name,
                 row.grade_number,
                 row.homeroom_teacher,
-                row.status,
+                row.status == "ACTIVE",
             )
             for row in cursor.fetchall()
         ]
+
+    def get_class_by_name_and_year(
+        self,
+        connection: pyodbc.Connection,
+        class_name: str,
+        school_year_id: int,
+    ) -> int | None:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT class_id
+            FROM dbo.CLASSES
+            WHERE class_name = ?
+              AND school_year_id = ?
+            """,
+            class_name,
+            school_year_id,
+        )
+        row = cursor.fetchone()
+        return None if row is None else int(row[0])
+
+    def list_catalog_classes(
+        self,
+        connection: pyodbc.Connection,
+        school_year_id: int,
+        grade_id: int | None = None,
+    ) -> list[SchoolClass]:
+        sql = """
+            SELECT
+                c.class_id,
+                c.class_name,
+                c.grade_id,
+                g.grade_number,
+                c.school_year_id,
+                sy.year_name,
+                c.homeroom_teacher,
+                c.status
+            FROM dbo.CLASSES AS c
+            INNER JOIN dbo.GRADES AS g
+                ON g.grade_id = c.grade_id
+            INNER JOIN dbo.SCHOOL_YEARS AS sy
+                ON sy.school_year_id = c.school_year_id
+            WHERE c.school_year_id = ?
+        """
+        parameters: list[object] = [school_year_id]
+        if grade_id is not None:
+            sql += " AND c.grade_id = ?"
+            parameters.append(grade_id)
+        sql += " ORDER BY g.grade_number, c.class_name, c.class_id"
+
+        cursor = connection.cursor()
+        cursor.execute(sql, *parameters)
+        return [self._map_catalog_class(row) for row in cursor.fetchall()]
+
+    def class_has_enrollments(
+        self,
+        connection: pyodbc.Connection,
+        class_id: int,
+    ) -> bool:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT TOP (1) 1
+            FROM dbo.STUDENT_ENROLLMENTS
+            WHERE class_id = ?
+            """,
+            class_id,
+        )
+        return cursor.fetchone() is not None
+
+    def update_class(
+        self,
+        connection: pyodbc.Connection,
+        class_id: int,
+        class_name: str,
+        grade_id: int,
+        school_year_id: int,
+        homeroom_teacher: str | None,
+        status: str,
+    ) -> None:
+        connection.cursor().execute(
+            """
+            UPDATE dbo.CLASSES
+            SET
+                class_name = ?,
+                grade_id = ?,
+                school_year_id = ?,
+                homeroom_teacher = ?,
+                status = ?
+            WHERE class_id = ?
+            """,
+            class_name,
+            grade_id,
+            school_year_id,
+            homeroom_teacher,
+            status,
+            class_id,
+        )
+
+    @staticmethod
+    def _map_catalog_class(row) -> SchoolClass:
+        return SchoolClass(
+            class_id=int(row[0]),
+            class_name=row[1],
+            grade_id=int(row[2]),
+            grade_number=int(row[3]),
+            school_year_id=int(row[4]),
+            school_year_name=row[5],
+            homeroom_teacher=row[6],
+            status=row[7],
+        )
     
 
     # =====================================================
