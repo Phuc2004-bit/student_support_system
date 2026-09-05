@@ -1,9 +1,18 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import Protocol
 
-from models.dto import Grade, SchoolClass, SchoolYear
+from models.dto import (
+    Assessment,
+    Grade,
+    SchoolClass,
+    SchoolYear,
+    Subject,
+    SupportRule,
+)
+from models.enums import AssessmentStatus
 
 
 class CatalogServiceContract(Protocol):
@@ -70,3 +79,84 @@ class CatalogServiceContract(Protocol):
         class_id: int,
         is_active: bool,
     ) -> None: ...
+
+    def list_catalog_subjects(self) -> list[Subject]: ...
+
+    def create_subject(
+        self,
+        subject_code: str,
+        subject_name: str,
+        is_active: bool = True,
+    ) -> int: ...
+
+    def update_subject(
+        self,
+        subject_id: int,
+        subject_code: str,
+        subject_name: str,
+        is_active: bool,
+    ) -> None: ...
+
+    def set_subject_active(self, subject_id: int, is_active: bool) -> None: ...
+
+    def list_assessments(
+        self,
+        school_year_id: int,
+        subject_id: int | None = None,
+        semester: int | None = None,
+        status: AssessmentStatus | None = None,
+    ) -> list[Assessment]: ...
+
+    def create_assessment(
+        self,
+        subject_id: int,
+        school_year_id: int,
+        assessment_name: str,
+        semester: int | None,
+        assessment_type: str | None,
+        assessment_date: date | None,
+    ) -> Assessment: ...
+
+    def update_assessment(
+        self,
+        assessment_id: int,
+        subject_id: int,
+        school_year_id: int,
+        assessment_name: str,
+        semester: int | None,
+        assessment_type: str | None,
+        assessment_date: date | None,
+        status: AssessmentStatus,
+    ) -> None: ...
+
+    def set_assessment_active(
+        self,
+        assessment_id: int,
+        is_active: bool,
+    ) -> None: ...
+
+    def list_catalog_support_rules(
+        self,
+        school_year_id: int,
+        subject_id: int | None = None,
+    ) -> list[SupportRule]: ...
+
+    def create_support_rule(
+        self,
+        subject_id: int,
+        school_year_id: int,
+        threshold: Decimal,
+        is_active: bool = True,
+    ) -> SupportRule: ...
+
+    def update_support_rule_threshold(
+        self,
+        rule_id: int,
+        threshold: Decimal,
+    ) -> SupportRule: ...
+
+    def set_support_rule_active(
+        self,
+        rule_id: int,
+        is_active: bool,
+    ) -> SupportRule: ...

@@ -1,10 +1,25 @@
 from datetime import date
+from decimal import Decimal
+
+import pyodbc
 
 from database.connection import DatabaseManager
-from exceptions import BusinessRuleError, DuplicateError, ValidationError
-from models.dto import Assessment, Grade, SchoolClass, SchoolYear
+from exceptions import (
+    BusinessRuleError,
+    DatabaseError,
+    DuplicateError,
+    ValidationError,
+)
+from models.dto import (
+    Assessment,
+    Grade,
+    SchoolClass,
+    SchoolYear,
+    Subject,
+    SupportRule,
+)
 from models.enums import AssessmentStatus
-from repositories import AcademicRepository
+from repositories import AcademicRepository, SupportRuleRepository
 
 
 class AcademicService:
@@ -12,9 +27,11 @@ class AcademicService:
         self,
         db: DatabaseManager,
         repository: AcademicRepository | None = None,
+        rule_repository: SupportRuleRepository | None = None,
     ):
         self.db = db
         self.repository = repository or AcademicRepository()
+        self.rule_repository = rule_repository or SupportRuleRepository()
 
     # =====================================================
     # SCHOOL YEAR
@@ -371,36 +388,95 @@ class AcademicService:
         self,
         subject_code: str,
         subject_name: str,
+        is_active: bool = True,
     ) -> int:
-        if not subject_code or not subject_code.strip():
-            raise ValidationError(
-                "Mã môn học không được để trống."
-            )
-
-        if not subject_name or not subject_name.strip():
-            raise ValidationError(
-                "Tên môn học không được để trống."
-            )
-
-        normalized_code = subject_code.strip().upper()
-
-        with self.db.transaction() as connection:
-            existing = self.repository.get_subject_by_code(
-                connection,
-                normalized_code,
-            )
-
-            if existing is not None:
-                raise DuplicateError(
-                    f"Mã môn học '{normalized_code}' đã tồn tại."
+        if not isinstance(is_active, bool):
+            raise ValidationError("Trạng thái môn học không hợp lệ.")
+        normalized_code, normalized_name = self._validate_subject_data(
+            subject_code,
+            subject_name,
+        )
+        try:
+            with self.db.transaction() as connection:
+                existing = self.repository.get_subject_by_code(
+                    connection,
+                    normalized_code,
                 )
+                if existing is not None:
+                    raise DuplicateError(
+                        f"Mã môn học '{normalized_code}' đã tồn tại."
+                    )
+                return self.repository.create_subject(
+                    connection,
+                    normalized_code,
+                    normalized_name,
+                    is_active,
+                )
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể tạo môn học.") from exc
 
-            return self.repository.create_subject(
-                connection,
-                normalized_code,
-                subject_name.strip(),
-                True,
-            )
+    def list_catalog_subjects(self) -> list[Subject]:
+        with self.db.transaction() as connection:
+            return self.repository.list_subjects(connection)
+
+    def update_subject(
+        self,
+        subject_id: int,
+        subject_code: str,
+        subject_name: str,
+        is_active: bool,
+    ) -> None:
+        self._validate_positive_id("subject_id", subject_id)
+        if not isinstance(is_active, bool):
+            raise ValidationError("Trạng thái môn học không hợp lệ.")
+        normalized_code, normalized_name = self._validate_subject_data(
+            subject_code,
+            subject_name,
+        )
+        try:
+            with self.db.transaction() as connection:
+                current = self.repository.get_subject_by_id(
+                    connection,
+                    subject_id,
+                )
+                if current is None:
+                    raise ValidationError("Không tìm thấy môn học.")
+                duplicate = self.repository.get_subject_by_code(
+                    connection,
+                    normalized_code,
+                )
+                if duplicate is not None and duplicate[0] != subject_id:
+                    raise DuplicateError(
+                        f"Mã môn học '{normalized_code}' đã tồn tại."
+                    )
+                self.repository.update_subject(
+                    connection,
+                    subject_id,
+                    normalized_code,
+                    normalized_name,
+                    is_active,
+                )
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật môn học.") from exc
+
+    def set_subject_active(self, subject_id: int, is_active: bool) -> None:
+        self._validate_positive_id("subject_id", subject_id)
+        if not isinstance(is_active, bool):
+            raise ValidationError("Trạng thái môn học không hợp lệ.")
+        try:
+            with self.db.transaction() as connection:
+                subject = self.repository.get_subject_by_id(connection, subject_id)
+                if subject is None:
+                    raise ValidationError("Không tìm thấy môn học.")
+                self.repository.update_subject(
+                    connection,
+                    subject.subject_id,
+                    subject.subject_code,
+                    subject.subject_name,
+                    is_active,
+                )
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật môn học.") from exc
 
     def get_subject(
         self,
@@ -443,36 +519,155 @@ class AcademicService:
         assessment_type: str | None,
         assessment_date: date | None,
     ) -> Assessment:
-        if subject_id <= 0:
-            raise ValidationError(
-                "subject_id không hợp lệ."
-            )
+        name, assessment_type = self._validate_assessment_data(
+            subject_id,
+            school_year_id,
+            assessment_name,
+            semester,
+            assessment_type,
+            assessment_date,
+        )
+        try:
+            with self.db.transaction() as connection:
+                self._validate_assessment_parents(
+                    connection,
+                    subject_id,
+                    school_year_id,
+                )
+                if self.repository.get_assessment_duplicate(
+                    connection,
+                    school_year_id,
+                    subject_id,
+                    name,
+                ) is not None:
+                    raise DuplicateError(
+                        "Bài đánh giá đã tồn tại trong môn và năm học."
+                    )
+                return self.repository.create_assessment(
+                    connection,
+                    subject_id,
+                    school_year_id,
+                    name,
+                    semester,
+                    assessment_type,
+                    assessment_date,
+                )
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể tạo bài đánh giá.") from exc
 
-        if school_year_id <= 0:
-            raise ValidationError(
-                "school_year_id không hợp lệ."
-            )
+    def update_assessment(
+        self,
+        assessment_id: int,
+        subject_id: int,
+        school_year_id: int,
+        assessment_name: str,
+        semester: int | None,
+        assessment_type: str | None,
+        assessment_date: date | None,
+        status: AssessmentStatus,
+    ) -> None:
+        self._validate_positive_id("assessment_id", assessment_id)
+        if not isinstance(status, AssessmentStatus):
+            raise ValidationError("Trạng thái bài đánh giá không hợp lệ.")
+        name, assessment_type = self._validate_assessment_data(
+            subject_id,
+            school_year_id,
+            assessment_name,
+            semester,
+            assessment_type,
+            assessment_date,
+        )
+        try:
+            with self.db.transaction() as connection:
+                current = self.repository.get_assessment_by_id(
+                    connection,
+                    assessment_id,
+                )
+                if current is None:
+                    raise ValidationError("Không tìm thấy bài đánh giá.")
+                self._validate_assessment_parents(
+                    connection,
+                    subject_id,
+                    school_year_id,
+                    require_active_subject=(
+                        current.subject_id != subject_id
+                        or (
+                            status == AssessmentStatus.ACTIVE
+                            and current.status != AssessmentStatus.ACTIVE
+                        )
+                    ),
+                )
+                if (
+                    self.repository.assessment_has_scores(connection, assessment_id)
+                    and (
+                        current.subject_id != subject_id
+                        or current.school_year_id != school_year_id
+                    )
+                ):
+                    raise BusinessRuleError(
+                        "Không thể đổi môn hoặc năm học của bài đã có điểm."
+                    )
+                duplicate_id = self.repository.get_assessment_duplicate(
+                    connection,
+                    school_year_id,
+                    subject_id,
+                    name,
+                )
+                if duplicate_id is not None and duplicate_id != assessment_id:
+                    raise DuplicateError(
+                        "Bài đánh giá đã tồn tại trong môn và năm học."
+                    )
+                self.repository.update_assessment(
+                    connection,
+                    assessment_id,
+                    subject_id,
+                    school_year_id,
+                    name,
+                    semester,
+                    assessment_type,
+                    assessment_date,
+                    status,
+                )
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật bài đánh giá.") from exc
 
-        if not assessment_name or not assessment_name.strip():
-            raise ValidationError(
-                "Tên bài đánh giá không được để trống."
-            )
-
-        if semester is not None and semester not in (1, 2):
-            raise ValidationError(
-                "Học kỳ chỉ được là 1 hoặc 2."
-            )
-
-        with self.db.transaction() as connection:
-            return self.repository.create_assessment(
-                connection,
-                subject_id,
-                school_year_id,
-                assessment_name.strip(),
-                semester,
-                assessment_type,
-                assessment_date,
-            )
+    def set_assessment_active(
+        self,
+        assessment_id: int,
+        is_active: bool,
+    ) -> None:
+        self._validate_positive_id("assessment_id", assessment_id)
+        if not isinstance(is_active, bool):
+            raise ValidationError("Trạng thái bài đánh giá không hợp lệ.")
+        try:
+            with self.db.transaction() as connection:
+                assessment = self.repository.get_assessment_by_id(
+                    connection,
+                    assessment_id,
+                )
+                if assessment is None:
+                    raise ValidationError("Không tìm thấy bài đánh giá.")
+                if is_active:
+                    self._validate_assessment_parents(
+                        connection,
+                        assessment.subject_id,
+                        assessment.school_year_id,
+                    )
+                self.repository.update_assessment(
+                    connection,
+                    assessment.assessment_id,
+                    assessment.subject_id,
+                    assessment.school_year_id,
+                    assessment.assessment_name,
+                    assessment.semester,
+                    assessment.assessment_type,
+                    assessment.assessment_date,
+                    AssessmentStatus.ACTIVE
+                    if is_active
+                    else AssessmentStatus.CANCELLED,
+                )
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật bài đánh giá.") from exc
 
     def get_assessment(
         self,
@@ -542,6 +737,205 @@ class AcademicService:
                 semester,
                 status,
             )
+
+    def list_active_assessments(
+        self,
+        school_year_id: int,
+        subject_id: int | None = None,
+        semester: int | None = None,
+    ) -> list[Assessment]:
+        return self.list_assessments(
+            school_year_id,
+            subject_id,
+            semester,
+            AssessmentStatus.ACTIVE,
+        )
+
+    # =====================================================
+    # SUPPORT RULE
+    # =====================================================
+
+    def list_catalog_support_rules(
+        self,
+        school_year_id: int,
+        subject_id: int | None = None,
+    ) -> list[SupportRule]:
+        self._validate_positive_id("school_year_id", school_year_id)
+        if subject_id is not None:
+            self._validate_positive_id("subject_id", subject_id)
+        with self.db.transaction() as connection:
+            return self.rule_repository.list_rules(
+                connection,
+                school_year_id,
+                subject_id,
+            )
+
+    def create_support_rule(
+        self,
+        subject_id: int,
+        school_year_id: int,
+        threshold: Decimal,
+        is_active: bool = True,
+    ) -> SupportRule:
+        self._validate_positive_id("subject_id", subject_id)
+        self._validate_positive_id("school_year_id", school_year_id)
+        if not isinstance(is_active, bool):
+            raise ValidationError("Trạng thái ngưỡng bổ trợ không hợp lệ.")
+        normalized = self._normalize_threshold(threshold)
+        try:
+            with self.db.transaction() as connection:
+                self._validate_assessment_parents(
+                    connection,
+                    subject_id,
+                    school_year_id,
+                )
+                if is_active and self.rule_repository.get_active_rule(
+                    connection,
+                    subject_id,
+                    school_year_id,
+                ) is not None:
+                    raise DuplicateError(
+                        "Đã có ngưỡng bổ trợ đang hoạt động cho môn và năm học."
+                    )
+                return self.rule_repository.create(
+                    connection,
+                    subject_id,
+                    school_year_id,
+                    normalized,
+                    is_active,
+                )
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể tạo ngưỡng bổ trợ.") from exc
+
+    def update_support_rule_threshold(
+        self,
+        rule_id: int,
+        threshold: Decimal,
+    ) -> SupportRule:
+        self._validate_positive_id("rule_id", rule_id)
+        normalized = self._normalize_threshold(threshold)
+        try:
+            with self.db.transaction() as connection:
+                if self.rule_repository.get_by_id(connection, rule_id) is None:
+                    raise ValidationError("Không tìm thấy ngưỡng bổ trợ.")
+                updated = self.rule_repository.update_threshold(
+                    connection,
+                    rule_id,
+                    normalized,
+                )
+                if updated is None:
+                    raise ValidationError("Không tìm thấy ngưỡng bổ trợ.")
+                return updated
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật ngưỡng bổ trợ.") from exc
+
+    def set_support_rule_active(
+        self,
+        rule_id: int,
+        is_active: bool,
+    ) -> SupportRule:
+        self._validate_positive_id("rule_id", rule_id)
+        if not isinstance(is_active, bool):
+            raise ValidationError("Trạng thái ngưỡng bổ trợ không hợp lệ.")
+        try:
+            with self.db.transaction() as connection:
+                rule = self.rule_repository.get_by_id(connection, rule_id)
+                if rule is None:
+                    raise ValidationError("Không tìm thấy ngưỡng bổ trợ.")
+                if is_active:
+                    self._validate_assessment_parents(
+                        connection,
+                        rule.subject_id,
+                        rule.school_year_id,
+                    )
+                active = self.rule_repository.get_active_rule(
+                    connection,
+                    rule.subject_id,
+                    rule.school_year_id,
+                )
+                if is_active and active is not None and active.rule_id != rule_id:
+                    raise DuplicateError(
+                        "Đã có ngưỡng bổ trợ đang hoạt động cho môn và năm học."
+                    )
+                updated = self.rule_repository.set_active(
+                    connection,
+                    rule_id,
+                    is_active,
+                )
+                if updated is None:
+                    raise ValidationError("Không tìm thấy ngưỡng bổ trợ.")
+                return updated
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật ngưỡng bổ trợ.") from exc
+
+    @classmethod
+    def _validate_subject_data(
+        cls,
+        subject_code: str,
+        subject_name: str,
+    ) -> tuple[str, str]:
+        code = cls._normalize_required_text(subject_code, "Mã môn học", 20)
+        name = cls._normalize_required_text(subject_name, "Tên môn học", 100)
+        return code.upper(), name
+
+    @classmethod
+    def _validate_assessment_data(
+        cls,
+        subject_id: int,
+        school_year_id: int,
+        assessment_name: str,
+        semester: int | None,
+        assessment_type: str | None,
+        assessment_date: date | None,
+    ) -> tuple[str, str | None]:
+        cls._validate_positive_id("subject_id", subject_id)
+        cls._validate_positive_id("school_year_id", school_year_id)
+        name = cls._normalize_required_text(
+            assessment_name,
+            "Tên bài đánh giá",
+            150,
+        )
+        if (
+            semester is not None
+            and (
+                isinstance(semester, bool)
+                or not isinstance(semester, int)
+                or semester not in (1, 2)
+            )
+        ):
+            raise ValidationError("Học kỳ chỉ được là 1 hoặc 2.")
+        if assessment_date is not None and not isinstance(assessment_date, date):
+            raise ValidationError("Ngày đánh giá không hợp lệ.")
+        normalized_type = cls._normalize_optional_text(
+            assessment_type,
+            "Loại bài đánh giá",
+            30,
+        )
+        return name, normalized_type
+
+    def _validate_assessment_parents(
+        self,
+        connection,
+        subject_id: int,
+        school_year_id: int,
+        require_active_subject: bool = True,
+    ) -> None:
+        subject = self.repository.get_subject_by_id(connection, subject_id)
+        if subject is None:
+            raise ValidationError("Không tìm thấy môn học.")
+        if require_active_subject and not subject.is_active:
+            raise BusinessRuleError("Môn học đã ngừng sử dụng.")
+        if self.repository.get_school_year_by_id(
+            connection,
+            school_year_id,
+        ) is None:
+            raise ValidationError("Không tìm thấy năm học.")
+
+    @staticmethod
+    def _normalize_threshold(value) -> Decimal:
+        from services.score_service import ScoreService
+
+        return ScoreService._normalize_score_value(value)
 
     @staticmethod
     def _validate_positive_id(

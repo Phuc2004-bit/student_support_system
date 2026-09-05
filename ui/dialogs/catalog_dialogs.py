@@ -16,7 +16,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from models.dto import Grade, SchoolClass, SchoolYear
+from models.dto import (
+    Assessment,
+    Grade,
+    SchoolClass,
+    SchoolYear,
+    Subject,
+    SupportRule,
+)
+from models.enums import AssessmentStatus
 
 
 def _python_date(value: QDate) -> date:
@@ -186,3 +194,185 @@ class ClassDialog(QDialog):
             self.teacher_input.text() or None,
             self.status_combo.currentData(),
         )
+
+
+class SubjectDialog(QDialog):
+    def __init__(
+        self,
+        subject: Subject | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Sửa môn học" if subject else "Thêm môn học")
+        self.code_input = QLineEdit(self)
+        self.code_input.setMaxLength(20)
+        self.name_input = QLineEdit(self)
+        self.name_input.setMaxLength(100)
+        self.active_checkbox = QCheckBox("Đang sử dụng", self)
+        self.active_checkbox.setChecked(True)
+        form = QFormLayout()
+        form.addRow("Mã môn *", self.code_input)
+        form.addRow("Tên môn *", self.name_input)
+        form.addRow("", self.active_checkbox)
+        self.button_box = _dialog_buttons(self)
+        root = QVBoxLayout(self)
+        root.addLayout(form)
+        root.addWidget(self.button_box)
+        if subject is not None:
+            self.code_input.setText(subject.subject_code)
+            self.name_input.setText(subject.subject_name)
+            self.active_checkbox.setChecked(subject.is_active)
+
+    def values(self) -> tuple[str, str, bool]:
+        return (
+            self.code_input.text(),
+            self.name_input.text(),
+            self.active_checkbox.isChecked(),
+        )
+
+
+class AssessmentDialog(QDialog):
+    def __init__(
+        self,
+        school_years: list[SchoolYear],
+        subjects: list[Subject],
+        assessment: Assessment | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Sửa bài đánh giá" if assessment else "Thêm bài đánh giá")
+        self.school_year_combo = QComboBox(self)
+        self.subject_combo = QComboBox(self)
+        self.name_input = QLineEdit(self)
+        self.name_input.setMaxLength(150)
+        self.semester_combo = QComboBox(self)
+        self.semester_combo.addItem("Không xác định", None)
+        self.semester_combo.addItem("Học kỳ 1", 1)
+        self.semester_combo.addItem("Học kỳ 2", 2)
+        self.type_input = QLineEdit(self)
+        self.type_input.setMaxLength(30)
+        self.has_date_checkbox = QCheckBox("Có ngày đánh giá", self)
+        self.date_input = QDateEdit(QDate.currentDate(), self)
+        self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("dd/MM/yyyy")
+        self.date_input.setEnabled(False)
+        self.has_date_checkbox.toggled.connect(self.date_input.setEnabled)
+        self.status_combo = QComboBox(self)
+        for status, label in (
+            (AssessmentStatus.ACTIVE, "Đang sử dụng"),
+            (AssessmentStatus.LOCKED, "Đã khóa"),
+            (AssessmentStatus.CANCELLED, "Ngừng sử dụng"),
+        ):
+            self.status_combo.addItem(label, status)
+        for item in school_years:
+            self.school_year_combo.addItem(item.year_name, item.school_year_id)
+        for item in subjects:
+            self.subject_combo.addItem(item.subject_name, item.subject_id)
+        form = QFormLayout()
+        form.addRow("Năm học *", self.school_year_combo)
+        form.addRow("Môn học *", self.subject_combo)
+        form.addRow("Tên bài *", self.name_input)
+        form.addRow("Học kỳ", self.semester_combo)
+        form.addRow("Loại bài", self.type_input)
+        form.addRow("", self.has_date_checkbox)
+        form.addRow("Ngày đánh giá", self.date_input)
+        form.addRow("Trạng thái", self.status_combo)
+        self.button_box = _dialog_buttons(self)
+        root = QVBoxLayout(self)
+        root.addLayout(form)
+        root.addWidget(self.button_box)
+        if assessment is not None:
+            self.school_year_combo.setCurrentIndex(
+                self.school_year_combo.findData(assessment.school_year_id)
+            )
+            self.subject_combo.setCurrentIndex(
+                self.subject_combo.findData(assessment.subject_id)
+            )
+            self.name_input.setText(assessment.assessment_name)
+            self.semester_combo.setCurrentIndex(
+                self.semester_combo.findData(assessment.semester)
+            )
+            self.type_input.setText(assessment.assessment_type or "")
+            if assessment.assessment_date is not None:
+                self.has_date_checkbox.setChecked(True)
+                self.date_input.setDate(_qt_date(assessment.assessment_date))
+            self.status_combo.setCurrentIndex(
+                self.status_combo.findData(assessment.status)
+            )
+
+    def values(self):
+        assessment_date = (
+            _python_date(self.date_input.date())
+            if self.has_date_checkbox.isChecked()
+            else None
+        )
+        return (
+            self.subject_combo.currentData(),
+            self.school_year_combo.currentData(),
+            self.name_input.text(),
+            self.semester_combo.currentData(),
+            self.type_input.text() or None,
+            assessment_date,
+            self.status_combo.currentData(),
+        )
+
+
+class SupportRuleDialog(QDialog):
+    def __init__(
+        self,
+        school_years: list[SchoolYear],
+        subjects: list[Subject],
+        rule: SupportRule | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Sửa ngưỡng bổ trợ" if rule else "Thêm ngưỡng bổ trợ")
+        self.school_year_combo = QComboBox(self)
+        self.subject_combo = QComboBox(self)
+        self.threshold_input = QLineEdit(self)
+        self.active_checkbox = QCheckBox("Đang sử dụng", self)
+        self.active_checkbox.setChecked(True)
+        for item in school_years:
+            self.school_year_combo.addItem(item.year_name, item.school_year_id)
+        for item in subjects:
+            self.subject_combo.addItem(item.subject_name, item.subject_id)
+        form = QFormLayout()
+        form.addRow("Năm học *", self.school_year_combo)
+        form.addRow("Môn học *", self.subject_combo)
+        form.addRow("Ngưỡng *", self.threshold_input)
+        form.addRow("", self.active_checkbox)
+        self.button_box = _dialog_buttons(self)
+        root = QVBoxLayout(self)
+        root.addLayout(form)
+        root.addWidget(self.button_box)
+        if rule is not None:
+            self.school_year_combo.setCurrentIndex(
+                self.school_year_combo.findData(rule.school_year_id)
+            )
+            self.subject_combo.setCurrentIndex(
+                self.subject_combo.findData(rule.subject_id)
+            )
+            self.threshold_input.setText(str(rule.threshold))
+            self.active_checkbox.setChecked(rule.is_active)
+            self.active_checkbox.setEnabled(False)
+            self.school_year_combo.setEnabled(False)
+            self.subject_combo.setEnabled(False)
+
+    def values(self) -> tuple[int, int, str, bool]:
+        return (
+            self.subject_combo.currentData(),
+            self.school_year_combo.currentData(),
+            self.threshold_input.text(),
+            self.active_checkbox.isChecked(),
+        )
+
+
+def _dialog_buttons(dialog: QDialog) -> QDialogButtonBox:
+    buttons = QDialogButtonBox(
+        QDialogButtonBox.StandardButton.Save
+        | QDialogButtonBox.StandardButton.Cancel,
+        dialog,
+    )
+    buttons.accepted.connect(dialog.accept)
+    buttons.rejected.connect(dialog.reject)
+    return buttons

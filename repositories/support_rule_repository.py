@@ -80,6 +80,57 @@ class SupportRuleRepository:
 
         return self._map_rule(row)
 
+    def get_by_id(
+        self,
+        connection: pyodbc.Connection,
+        rule_id: int,
+    ) -> SupportRule | None:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                rule_id,
+                subject_id,
+                school_year_id,
+                threshold,
+                is_active,
+                created_at,
+                updated_at
+            FROM dbo.SUPPORT_RULES
+            WHERE rule_id = ?
+            """,
+            rule_id,
+        )
+        row = cursor.fetchone()
+        return None if row is None else self._map_rule(row)
+
+    def list_rules(
+        self,
+        connection: pyodbc.Connection,
+        school_year_id: int,
+        subject_id: int | None = None,
+    ) -> list[SupportRule]:
+        sql = """
+            SELECT
+                rule_id,
+                subject_id,
+                school_year_id,
+                threshold,
+                is_active,
+                created_at,
+                updated_at
+            FROM dbo.SUPPORT_RULES
+            WHERE school_year_id = ?
+        """
+        parameters: list[object] = [school_year_id]
+        if subject_id is not None:
+            sql += " AND subject_id = ?"
+            parameters.append(subject_id)
+        sql += " ORDER BY subject_id, is_active DESC, rule_id DESC"
+        cursor = connection.cursor()
+        cursor.execute(sql, *parameters)
+        return [self._map_rule(row) for row in cursor.fetchall()]
+
     def update_threshold(
         self,
         connection: pyodbc.Connection,

@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from models.enums import AssessmentStatus
+
 
 @dataclass(frozen=True, slots=True)
 class ScoreContextSelection:
@@ -245,10 +247,25 @@ class ScoreContextFilterWidget(QWidget):
         if not enabled or self.academic_service is None:
             return
 
-        assessments = self.academic_service.list_assessments(
-            value.school_year_id,
-            subject_id=value.subject_id,
+        active_reader = getattr(
+            self.academic_service,
+            "list_active_assessments",
+            None,
         )
+        if active_reader is not None:
+            assessments = active_reader(
+                value.school_year_id,
+                subject_id=value.subject_id,
+            )
+        else:
+            assessments = [
+                item
+                for item in self.academic_service.list_assessments(
+                    value.school_year_id,
+                    subject_id=value.subject_id,
+                )
+                if item.status == AssessmentStatus.ACTIVE
+            ]
         self.assessment_combo.blockSignals(True)
         for assessment in assessments:
             self.assessment_combo.addItem(

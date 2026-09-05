@@ -21,6 +21,14 @@ class Grade:
 
 
 @dataclass(frozen=True, slots=True)
+class Subject:
+    subject_id: int
+    subject_code: str
+    subject_name: str
+    is_active: bool
+
+
+@dataclass(frozen=True, slots=True)
 class SchoolClass:
     class_id: int
     class_name: str

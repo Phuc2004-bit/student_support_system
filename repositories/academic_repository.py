@@ -2,7 +2,7 @@ from datetime import date
 
 import pyodbc
 
-from models.dto import Assessment, SchoolClass
+from models.dto import Assessment, SchoolClass, Subject
 from models.enums import AssessmentStatus
 
 
@@ -589,6 +589,77 @@ class AcademicRepository:
             bool(row.is_active),
         )
 
+    def get_subject_by_id(
+        self,
+        connection: pyodbc.Connection,
+        subject_id: int,
+    ) -> Subject | None:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                subject_id,
+                subject_code,
+                subject_name,
+                is_active
+            FROM dbo.SUBJECTS
+            WHERE subject_id = ?
+            """,
+            subject_id,
+        )
+        row = cursor.fetchone()
+        return None if row is None else self._map_subject(row)
+
+    def list_subjects(
+        self,
+        connection: pyodbc.Connection,
+    ) -> list[Subject]:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                subject_id,
+                subject_code,
+                subject_name,
+                is_active
+            FROM dbo.SUBJECTS
+            ORDER BY subject_name, subject_code, subject_id
+            """
+        )
+        return [self._map_subject(row) for row in cursor.fetchall()]
+
+    def update_subject(
+        self,
+        connection: pyodbc.Connection,
+        subject_id: int,
+        subject_code: str,
+        subject_name: str,
+        is_active: bool,
+    ) -> None:
+        connection.cursor().execute(
+            """
+            UPDATE dbo.SUBJECTS
+            SET
+                subject_code = ?,
+                subject_name = ?,
+                is_active = ?
+            WHERE subject_id = ?
+            """,
+            subject_code,
+            subject_name,
+            int(is_active),
+            subject_id,
+        )
+
+    @staticmethod
+    def _map_subject(row) -> Subject:
+        return Subject(
+            subject_id=int(row[0]),
+            subject_code=row[1],
+            subject_name=row[2],
+            is_active=bool(row[3]),
+        )
+
     def list_active_subjects(
         self,
         connection: pyodbc.Connection,
@@ -749,6 +820,81 @@ class AcademicRepository:
             self._map_assessment(row)
             for row in cursor.fetchall()
         ]
+
+    def get_assessment_duplicate(
+        self,
+        connection: pyodbc.Connection,
+        school_year_id: int,
+        subject_id: int,
+        assessment_name: str,
+    ) -> int | None:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT TOP (1) assessment_id
+            FROM dbo.ASSESSMENTS
+            WHERE school_year_id = ?
+              AND subject_id = ?
+              AND assessment_name = ?
+            ORDER BY assessment_id
+            """,
+            school_year_id,
+            subject_id,
+            assessment_name,
+        )
+        row = cursor.fetchone()
+        return None if row is None else int(row[0])
+
+    def assessment_has_scores(
+        self,
+        connection: pyodbc.Connection,
+        assessment_id: int,
+    ) -> bool:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT TOP (1) 1
+            FROM dbo.SCORES
+            WHERE assessment_id = ?
+            """,
+            assessment_id,
+        )
+        return cursor.fetchone() is not None
+
+    def update_assessment(
+        self,
+        connection: pyodbc.Connection,
+        assessment_id: int,
+        subject_id: int,
+        school_year_id: int,
+        assessment_name: str,
+        semester: int | None,
+        assessment_type: str | None,
+        assessment_date: date | None,
+        status: AssessmentStatus,
+    ) -> None:
+        connection.cursor().execute(
+            """
+            UPDATE dbo.ASSESSMENTS
+            SET
+                subject_id = ?,
+                school_year_id = ?,
+                assessment_name = ?,
+                semester = ?,
+                assessment_type = ?,
+                assessment_date = ?,
+                status = ?
+            WHERE assessment_id = ?
+            """,
+            subject_id,
+            school_year_id,
+            assessment_name,
+            semester,
+            assessment_type,
+            assessment_date,
+            status.value,
+            assessment_id,
+        )
 
     @staticmethod
     def _map_assessment(row) -> Assessment:
