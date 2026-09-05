@@ -21,6 +21,9 @@ class PermissionStub:
     def can_manage_users(self, session):
         return getattr(session.role, "value", session.role) == "ADMIN"
 
+    def can_access_system(self, session):
+        return True
+
     def can_manage_catalogs(self, session):
         return getattr(session.role, "value", session.role) == "ADMIN"
 
@@ -107,4 +110,4 @@ def test_teacher_can_navigate_dashboard_after_integration():
     assert window.can_navigate_to("dashboard") is True
     assert window.page_stack.current_key == "dashboard"
     assert window.can_navigate_to("catalogs") is False
-    assert window.can_navigate_to("system") is False
+    assert window.can_navigate_to("system") is True

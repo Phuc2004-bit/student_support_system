@@ -11,10 +11,12 @@ from PySide6.QtWidgets import (
 
 from app_context import AppContext
 from ui.pages.dashboard_page import DashboardPage
-from ui.pages.placeholder_page import PlaceholderPage
+from ui.pages.catalog_page import CatalogPage
+from ui.pages.reports_page import ReportsPage
 from ui.pages.students_page import StudentsPage
 from ui.pages.scores_page import ScoresPage
 from ui.pages.support_page import SupportPage
+from ui.pages.system_page import SystemPage
 from ui.widgets.page_stack import PageStack
 from ui.widgets.sidebar import Sidebar
 from ui.widgets.topbar import Topbar
@@ -24,8 +26,7 @@ class MainWindow(QMainWindow):
     """
     Cửa sổ chính.
 
-    Đăng ký các page nghiệp vụ đã được triển khai và giữ placeholder
-    cho các khu vực chưa xây dựng.
+    Đăng ký các page nghiệp vụ đã được triển khai và điều phối navigation.
     """
 
     logout_requested = Signal()
@@ -215,19 +216,29 @@ class MainWindow(QMainWindow):
             support_page,
         )
 
-        for key, title in self.PAGE_TITLES.items():
-            if key in {"dashboard", "students", "scores", "support"}:
-                continue
+        reports_page = ReportsPage(
+            academic_service=self.app_context.academic_service,
+            report_service=self.app_context.report_service,
+            parent=self.page_stack,
+        )
+        self.pages["reports"] = reports_page
+        self.page_stack.register_page("reports", reports_page)
 
-            page = PlaceholderPage(
-                title,
-                self.page_stack,
-            )
-            self.pages[key] = page
-            self.page_stack.register_page(
-                key,
-                page,
-            )
+        catalog_page = CatalogPage(
+            academic_service=self.app_context.academic_service,
+            parent=self.page_stack,
+        )
+        self.pages["catalogs"] = catalog_page
+        self.page_stack.register_page("catalogs", catalog_page)
+
+        system_page = SystemPage(
+            user_service=self.app_context.user_service,
+            session=self.app_context.session,
+            permission_service=self.app_context.permission_service,
+            parent=self.page_stack,
+        )
+        self.pages["system"] = system_page
+        self.page_stack.register_page("system", system_page)
 
     def _initialize_dashboard(self) -> None:
         dashboard_page = self.pages.get("dashboard")
@@ -250,7 +261,7 @@ class MainWindow(QMainWindow):
             "support": self.app_context.can_manage_support(),
             "reports": self.app_context.can_view_reports(),
             "catalogs": self.app_context.can_manage_catalogs(),
-            "system": self.app_context.can_manage_users(),
+            "system": self.app_context.can_access_system(),
         }
 
         self._navigation_permissions = permissions
@@ -295,6 +306,12 @@ class MainWindow(QMainWindow):
             self._initialize_scores()
         elif key == "support":
             self._initialize_support()
+        elif key == "reports":
+            self._initialize_reports()
+        elif key == "catalogs":
+            self._initialize_catalogs()
+        elif key == "system":
+            self._initialize_system()
 
     def _initialize_students(self) -> None:
         students_page = self.pages.get("students")
@@ -310,6 +327,21 @@ class MainWindow(QMainWindow):
         support_page = self.pages.get("support")
         if isinstance(support_page, SupportPage):
             support_page.initialize_support()
+
+    def _initialize_reports(self) -> None:
+        reports_page = self.pages.get("reports")
+        if isinstance(reports_page, ReportsPage):
+            reports_page.initialize_reports()
+
+    def _initialize_catalogs(self) -> None:
+        catalog_page = self.pages.get("catalogs")
+        if isinstance(catalog_page, CatalogPage):
+            catalog_page.initialize_catalogs()
+
+    def _initialize_system(self) -> None:
+        system_page = self.pages.get("system")
+        if isinstance(system_page, SystemPage):
+            system_page.initialize_system()
 
     def request_logout(self) -> None:
         if self._logout_in_progress:

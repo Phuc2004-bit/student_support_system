@@ -30,6 +30,9 @@ class PermissionStub:
     def can_manage_users(self, session):
         return self._role_value(session) == "ADMIN"
 
+    def can_access_system(self, session):
+        return True
+
     def can_manage_catalogs(self, session):
         return self._role_value(session) == "ADMIN"
 
@@ -144,7 +147,7 @@ def test_teacher_dashboard_and_logout_still_work_end_to_end():
 
     assert window.can_navigate_to("dashboard") is True
     assert window.can_navigate_to("catalogs") is False
-    assert window.can_navigate_to("system") is False
+    assert window.can_navigate_to("system") is True
     assert dashboard_service.call_count == 1
 
     window.request_logout()

@@ -158,14 +158,12 @@ def test_teacher_login_permissions_navigation_and_logout_integration():
         "scores",
         "support",
         "reports",
+        "system",
     ):
         assert window.can_navigate_to(key) is True
         assert not window.sidebar.button(key).isHidden()
 
-    for key in (
-        "catalogs",
-        "system",
-    ):
+    for key in ("catalogs",):
         assert window.can_navigate_to(key) is False
         assert window.sidebar.button(key).isHidden()
 
@@ -174,7 +172,7 @@ def test_teacher_login_permissions_navigation_and_logout_integration():
     assert window.page_stack.current_key == "support"
 
     with pytest.raises(PermissionError):
-        window.navigate_to("system")
+        window.navigate_to("catalogs")
 
     assert window.page_stack.current_key == "support"
 
@@ -242,8 +240,8 @@ def test_relogin_rebuilds_ui_permissions_from_new_session():
     teacher_window = MainWindow(context)
 
     assert teacher_window.topbar.role_label.text() == "Giáo viên"
-    assert teacher_window.can_navigate_to("system") is False
-    assert teacher_window.sidebar.button("system").isHidden()
+    assert teacher_window.can_navigate_to("system") is True
+    assert not teacher_window.sidebar.button("system").isHidden()
     assert teacher_window.can_navigate_to("support") is True
 
     teacher_window.request_logout()

@@ -57,6 +57,26 @@ class PermissionService:
                 "Bạn không có quyền quản lý tài khoản."
             )
 
+    @staticmethod
+    def can_access_system(
+        session: UserSession,
+    ) -> bool:
+        """ADMIN và TEACHER đều được quản lý tài khoản của chính mình."""
+        PermissionService._validate_session(session)
+        return session.role in {
+            UserRole.ADMIN,
+            UserRole.TEACHER,
+        }
+
+    @staticmethod
+    def require_access_system(
+        session: UserSession,
+    ) -> None:
+        if not PermissionService.can_access_system(session):
+            raise ValidationError(
+                "Bạn không có quyền truy cập chức năng tài khoản."
+            )
+
     # =====================================================
     # CATALOG MANAGEMENT
     # =====================================================

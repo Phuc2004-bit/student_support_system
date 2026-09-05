@@ -113,7 +113,7 @@ def test_admin_sees_profile_and_user_management_tabs():
         "Tài khoản của tôi",
         "Người dùng",
     ]
-    assert "SystemPage" not in inspect.getsource(MainWindow)
+    assert "SystemPage" in inspect.getsource(MainWindow)
 
 
 def test_teacher_sees_only_own_account_tab_and_no_management_call():

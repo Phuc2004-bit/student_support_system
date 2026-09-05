@@ -32,6 +32,7 @@ class SystemPage(QWidget):
         user_dialog_factory=UserDialog,
         profile_dialog_factory=ProfileDialog,
         change_password_dialog_factory=ChangePasswordDialog,
+        permission_service: PermissionService | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -40,6 +41,7 @@ class SystemPage(QWidget):
         self.user_dialog_factory = user_dialog_factory
         self.profile_dialog_factory = profile_dialog_factory
         self.change_password_dialog_factory = change_password_dialog_factory
+        self.permission_service = permission_service
         self.users: tuple[UserListItem, ...] = ()
         self.own_profile: UserListItem | None = None
         self.setObjectName("systemPage")
@@ -369,6 +371,7 @@ class SystemPage(QWidget):
         if self.session is None:
             return False
         try:
-            return PermissionService.can_manage_users(self.session)
+            permission_service = self.permission_service or PermissionService
+            return permission_service.can_manage_users(self.session)
         except AppError:
             return False

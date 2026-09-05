@@ -49,6 +49,7 @@ def test_unauthenticated_context_denies_all_can_checks():
 
     assert context.is_authenticated is False
     assert context.can_manage_users() is False
+    assert context.can_access_system() is False
     assert context.can_manage_catalogs() is False
     assert context.can_manage_students() is False
     assert context.can_manage_scores() is False
@@ -62,6 +63,7 @@ def test_admin_context_has_all_v1_permissions():
     )
 
     assert context.can_manage_users() is True
+    assert context.can_access_system() is True
     assert context.can_manage_catalogs() is True
     assert context.can_manage_students() is True
     assert context.can_manage_scores() is True
@@ -70,6 +72,7 @@ def test_admin_context_has_all_v1_permissions():
 
     context.require_admin()
     context.require_manage_users()
+    context.require_access_system()
     context.require_manage_catalogs()
     context.require_manage_students()
     context.require_manage_scores()
@@ -83,6 +86,7 @@ def test_teacher_context_matches_permission_matrix():
     )
 
     assert context.can_manage_users() is False
+    assert context.can_access_system() is True
     assert context.can_manage_catalogs() is False
 
     assert context.can_manage_students() is True
@@ -95,6 +99,8 @@ def test_teacher_context_matches_permission_matrix():
 
     with pytest.raises(ValidationError):
         context.require_manage_users()
+
+    context.require_access_system()
 
     with pytest.raises(ValidationError):
         context.require_manage_catalogs()
@@ -116,6 +122,7 @@ def test_clear_session_immediately_removes_permissions():
 
     assert context.is_authenticated is False
     assert context.can_manage_users() is False
+    assert context.can_access_system() is False
     assert context.can_manage_students() is False
 
     with pytest.raises(PermissionError):

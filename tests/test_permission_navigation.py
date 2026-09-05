@@ -86,6 +86,7 @@ def test_teacher_navigation_visibility_matches_permissions():
         "scores",
         "support",
         "reports",
+        "system",
     ):
         assert not window.sidebar.button(
             key
@@ -94,10 +95,7 @@ def test_teacher_navigation_visibility_matches_permissions():
             key
         ) is True
 
-    for key in (
-        "catalogs",
-        "system",
-    ):
+    for key in ("catalogs",):
         assert window.sidebar.button(
             key
         ).isHidden()
@@ -124,22 +122,17 @@ def test_teacher_cannot_navigate_to_catalogs_programmatically():
     )
 
 
-def test_teacher_cannot_navigate_to_system_programmatically():
+def test_teacher_can_navigate_to_system_for_own_profile():
     get_app()
 
     window = MainWindow(
         make_context(UserRole.TEACHER)
     )
 
-    with pytest.raises(PermissionError):
-        window.navigate_to(
-            "system"
-        )
+    window.navigate_to("system")
 
-    assert (
-        window.page_stack.current_key
-        == "dashboard"
-    )
+    assert window.page_stack.current_key == "system"
+    assert window.sidebar.current_key == "system"
 
 
 def test_teacher_can_navigate_to_allowed_page():

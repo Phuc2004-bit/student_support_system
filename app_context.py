@@ -56,6 +56,9 @@ class AppContext:
     def can_manage_users(self) -> bool:
         return self._check_permission("can_manage_users")
 
+    def can_access_system(self) -> bool:
+        return self._check_permission("can_access_system")
+
     def can_manage_catalogs(self) -> bool:
         return self._check_permission("can_manage_catalogs")
 
@@ -76,6 +79,9 @@ class AppContext:
 
     def require_manage_users(self) -> None:
         self._require_permission("require_manage_users")
+
+    def require_access_system(self) -> None:
+        self._require_permission("require_access_system")
 
     def require_manage_catalogs(self) -> None:
         self._require_permission("require_manage_catalogs")

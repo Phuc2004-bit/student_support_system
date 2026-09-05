@@ -337,7 +337,7 @@ def test_catalog_ui_has_no_sql_repository_or_direct_transaction_logic():
         assert forbidden not in source
 
 
-def test_catalog_page_is_not_integrated_into_main_window_in_step_12_5():
+def test_catalog_page_is_integrated_into_main_window_in_step_12_9():
     source = inspect.getsource(MainWindow)
 
-    assert "CatalogPage" not in source
+    assert "CatalogPage" in source

@@ -17,7 +17,6 @@ from models.dto.report_dto import (
 from models.enums import InterventionStatus, UserRole
 from services.permission_service import PermissionService
 from ui.main_window import MainWindow
-from ui.pages.placeholder_page import PlaceholderPage
 from ui.pages.reports_page import ReportsPage
 from ui.widgets.support_filter_widget import SupportFilterWidget
 
@@ -268,7 +267,7 @@ def test_reports_ui_is_read_only_and_has_no_data_layer_dependencies():
         assert forbidden not in source
 
 
-def test_reports_page_is_not_integrated_into_main_window_yet():
+def test_reports_page_is_integrated_into_main_window():
     app()
     context = AppContext(
         db=object(),
@@ -279,4 +278,4 @@ def test_reports_page_is_not_integrated_into_main_window_yet():
 
     window = MainWindow(context)
 
-    assert isinstance(window.pages["reports"], PlaceholderPage)
+    assert isinstance(window.pages["reports"], ReportsPage)

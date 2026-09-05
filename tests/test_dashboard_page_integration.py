@@ -13,10 +13,12 @@ from models.enums import UserRole
 from services.permission_service import PermissionService
 from ui.main_window import MainWindow
 from ui.pages.dashboard_page import DashboardPage
-from ui.pages.placeholder_page import PlaceholderPage
+from ui.pages.catalog_page import CatalogPage
+from ui.pages.reports_page import ReportsPage
 from ui.pages.students_page import StudentsPage
 from ui.pages.scores_page import ScoresPage
 from ui.pages.support_page import SupportPage
+from ui.pages.system_page import SystemPage
 
 
 def get_app() -> QApplication:
@@ -73,7 +75,7 @@ def test_main_window_registers_real_dashboard_page():
     )
 
 
-def test_main_window_uses_real_pages_and_placeholders_for_unbuilt_pages():
+def test_main_window_uses_all_real_pages_after_step_12_9():
     get_app()
 
     window = MainWindow(
@@ -84,15 +86,9 @@ def test_main_window_uses_real_pages_and_placeholders_for_unbuilt_pages():
     assert isinstance(window.pages["scores"], ScoresPage)
     assert isinstance(window.pages["support"], SupportPage)
 
-    for key in (
-        "reports",
-        "catalogs",
-        "system",
-    ):
-        assert isinstance(
-            window.pages[key],
-            PlaceholderPage,
-        )
+    assert isinstance(window.pages["reports"], ReportsPage)
+    assert isinstance(window.pages["catalogs"], CatalogPage)
+    assert isinstance(window.pages["system"], SystemPage)
 
 
 def test_dashboard_is_default_page_after_main_window_opens():

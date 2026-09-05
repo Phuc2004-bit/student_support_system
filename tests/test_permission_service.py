@@ -32,6 +32,7 @@ def test_permission_service_admin_and_teacher():
     assert PermissionService.is_teacher(admin) is False
 
     assert PermissionService.can_manage_users(admin) is True
+    assert PermissionService.can_access_system(admin) is True
     assert PermissionService.can_manage_catalogs(admin) is True
     assert PermissionService.can_manage_students(admin) is True
     assert PermissionService.can_manage_scores(admin) is True
@@ -41,6 +42,7 @@ def test_permission_service_admin_and_teacher():
     PermissionService.require_admin(admin)
     PermissionService.require_teacher_or_admin(admin)
     PermissionService.require_manage_users(admin)
+    PermissionService.require_access_system(admin)
     PermissionService.require_manage_catalogs(admin)
     PermissionService.require_manage_students(admin)
     PermissionService.require_manage_scores(admin)
@@ -51,6 +53,7 @@ def test_permission_service_admin_and_teacher():
     assert PermissionService.is_teacher(teacher) is True
 
     assert PermissionService.can_manage_users(teacher) is False
+    assert PermissionService.can_access_system(teacher) is True
     assert PermissionService.can_manage_catalogs(teacher) is False
 
     assert PermissionService.can_manage_students(teacher) is True
@@ -63,6 +66,8 @@ def test_permission_service_admin_and_teacher():
 
     with pytest.raises(ValidationError):
         PermissionService.require_manage_users(teacher)
+
+    PermissionService.require_access_system(teacher)
 
     with pytest.raises(ValidationError):
         PermissionService.require_manage_catalogs(teacher)

@@ -92,7 +92,7 @@ class AcceptedDialog:
         return ("Updated", UserRole.ADMIN, "updated@example.com", None)
 
 
-def test_system_page_builds_user_tab_without_main_window_integration():
+def test_system_page_builds_user_tab_and_is_available_for_main_window_wiring():
     app()
     page = SystemPage()
 
@@ -100,7 +100,7 @@ def test_system_page_builds_user_tab_without_main_window_integration():
     assert isinstance(page.tabs, QTabWidget)
     assert page.tabs.count() == 1
     assert page.tabs.tabText(0) == "Người dùng"
-    assert "SystemPage" not in inspect.getsource(MainWindow)
+    assert "SystemPage" in inspect.getsource(MainWindow)
 
 
 def test_user_list_loads_through_service_and_never_renders_hash():
