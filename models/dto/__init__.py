@@ -32,6 +32,14 @@ from models.dto.import_dto import (
     ScoreImportRawRow,
 )
 from models.dto.catalog import Grade, SchoolClass, SchoolYear, Subject
+from models.dto.score_import import (
+    ScoreImportContext,
+    ScoreImportIssue,
+    ScoreImportRow,
+    ScoreImportSourceMetadata,
+    ScoreImportTemplateStudent,
+    ScoreImportWorkbook,
+)
 
 __all__ = [
     "Enrollment",
@@ -63,4 +71,10 @@ __all__ = [
     "Subject",
     "Grade",
     "SchoolClass",
+    "ScoreImportContext",
+    "ScoreImportIssue",
+    "ScoreImportRow",
+    "ScoreImportSourceMetadata",
+    "ScoreImportTemplateStudent",
+    "ScoreImportWorkbook",
 ]

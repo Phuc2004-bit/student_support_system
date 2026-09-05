@@ -38,5 +38,9 @@ class DatabaseError(AppError):
     """Lỗi thao tác với cơ sở dữ liệu."""
 
 
+class ScoreImportError(AppError):
+    """Lỗi đọc hoặc tạo workbook nhập điểm."""
+
+
 class ReportExportError(AppError):
     """Lỗi tạo file báo cáo."""

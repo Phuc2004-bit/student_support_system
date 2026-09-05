@@ -8,6 +8,8 @@ from services.user_service import UserService
 from services.auth_service import AuthService
 from services.permission_service import PermissionService
 from services.import_service import ImportService
+from services.score_import_parser import ScoreImportWorkbookParser
+from services.score_import_template_service import ScoreImportTemplateService
 
 
 __all__ = [
@@ -21,4 +23,6 @@ __all__ = [
     "AuthService",
     "PermissionService",
     "ImportService",
+    "ScoreImportWorkbookParser",
+    "ScoreImportTemplateService",
 ]

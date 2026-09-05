@@ -9,6 +9,7 @@ from exceptions.app_exceptions import (
     NotFoundError,
     PermissionDeniedError,
     ReportExportError,
+    ScoreImportError,
     ValidationError,
 )
 
@@ -23,5 +24,6 @@ __all__ = [
     "NotFoundError",
     "PermissionDeniedError",
     "ReportExportError",
+    "ScoreImportError",
     "ValidationError",
 ]
