@@ -291,6 +291,32 @@ class UserRepository:
 
         return self._map_user(row)
 
+    def get_profile_by_id(
+        self,
+        connection: pyodbc.Connection,
+        user_id: int,
+    ) -> UserListItem | None:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                user_id,
+                username,
+                full_name,
+                role,
+                email,
+                phone,
+                is_active,
+                created_at,
+                updated_at
+            FROM dbo.USERS
+            WHERE user_id = ?
+            """,
+            user_id,
+        )
+        row = cursor.fetchone()
+        return None if row is None else self._map_list_item(row)
+
     def update_management_details(
         self,
         connection: pyodbc.Connection,

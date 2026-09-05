@@ -5,6 +5,26 @@ from models.enums import UserRole
 
 
 class UserManagementContract(Protocol):
+    def get_own_profile(
+        self,
+        actor: UserSession,
+    ) -> UserListItem: ...
+
+    def update_own_profile(
+        self,
+        actor: UserSession,
+        full_name: str,
+        email: str | None = None,
+        phone: str | None = None,
+    ) -> UserListItem: ...
+
+    def change_own_password(
+        self,
+        actor: UserSession,
+        current_password: str,
+        new_password: str,
+    ) -> UserListItem: ...
+
     def admin_list_users(
         self,
         actor: UserSession,

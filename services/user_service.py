@@ -147,6 +147,94 @@ class UserService:
             )
 
     # =====================================================
+    # CURRENT ACCOUNT
+    # =====================================================
+
+    def get_own_profile(
+        self,
+        actor: UserSession,
+    ) -> UserListItem:
+        PermissionService.require_teacher_or_admin(actor)
+        try:
+            with self.db.transaction() as connection:
+                profile = self.user_repository.get_profile_by_id(
+                    connection,
+                    actor.user_id,
+                )
+                self._validate_session_identity(actor, profile)
+                return profile
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể tải hồ sơ tài khoản.") from exc
+
+    def update_own_profile(
+        self,
+        actor: UserSession,
+        full_name: str,
+        email: str | None = None,
+        phone: str | None = None,
+    ) -> UserListItem:
+        PermissionService.require_teacher_or_admin(actor)
+        full_name = self._normalize_full_name(full_name)
+        email = self._normalize_optional(email)
+        phone = self._normalize_optional(phone)
+        self._validate_email(email)
+        self._validate_phone(phone)
+        try:
+            with self.db.transaction() as connection:
+                existing = self.user_repository.get_profile_by_id(
+                    connection,
+                    actor.user_id,
+                )
+                self._validate_session_identity(actor, existing)
+                updated = self.user_repository.update_profile(
+                    connection,
+                    actor.user_id,
+                    full_name,
+                    email,
+                    phone,
+                )
+                if updated is None:
+                    raise ValidationError("Không thể cập nhật hồ sơ tài khoản.")
+                return self._to_list_item(updated)
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật hồ sơ tài khoản.") from exc
+
+    def change_own_password(
+        self,
+        actor: UserSession,
+        current_password: str,
+        new_password: str,
+    ) -> UserListItem:
+        PermissionService.require_teacher_or_admin(actor)
+        if not isinstance(current_password, str) or not current_password:
+            raise ValidationError("Mật khẩu hiện tại không đúng.")
+        self._validate_password(new_password)
+        try:
+            with self.db.transaction() as connection:
+                existing = self.user_repository.get_by_id(
+                    connection,
+                    actor.user_id,
+                )
+                self._validate_session_identity(actor, existing)
+                if not self.verify_password(current_password, existing.password_hash):
+                    raise ValidationError("Mật khẩu hiện tại không đúng.")
+                if self.verify_password(new_password, existing.password_hash):
+                    raise BusinessRuleError(
+                        "Mật khẩu mới phải khác mật khẩu hiện tại."
+                    )
+                password_hash = self._hash_password(new_password)
+                updated = self.user_repository.update_password_hash(
+                    connection,
+                    actor.user_id,
+                    password_hash,
+                )
+                if updated is None:
+                    raise ValidationError("Không thể đổi mật khẩu.")
+                return self._to_list_item(updated)
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể đổi mật khẩu.") from exc
+
+    # =====================================================
     # ADMIN MANAGEMENT
     # =====================================================
 
@@ -495,6 +583,34 @@ class UserService:
             or user_id <= 0
         ):
             raise ValidationError("user_id không hợp lệ.")
+
+    @staticmethod
+    def _validate_session_identity(
+        actor: UserSession,
+        user: User | UserListItem | None,
+    ) -> None:
+        if (
+            user is None
+            or user.username != actor.username
+            or user.role != actor.role
+        ):
+            raise ValidationError("Phiên đăng nhập không còn hợp lệ.")
+        if not user.is_active:
+            raise ValidationError("Tài khoản đã bị vô hiệu hóa.")
+
+    @staticmethod
+    def _to_list_item(user: User) -> UserListItem:
+        return UserListItem(
+            user_id=user.user_id,
+            username=user.username,
+            full_name=user.full_name,
+            role=user.role,
+            email=user.email,
+            phone=user.phone,
+            is_active=user.is_active,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )
 
     @staticmethod
     def _normalize_username(
