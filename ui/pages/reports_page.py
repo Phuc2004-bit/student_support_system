@@ -76,11 +76,12 @@ class ReportsPage(ReportExcelActions, QWidget):
         report_service=None,
         parent: QWidget | None = None,
         excel_writer=None,
+        excel_allowed=None,
     ) -> None:
         super().__init__(parent)
         self.academic_service = academic_service
         self.report_service = report_service
-        self._configure_excel_actions(excel_writer)
+        self._configure_excel_actions(excel_writer, excel_allowed)
         self.report_data: SupportReportData | None = None
         self._report_filters: SupportFilterSelection | None = None
         self._load_state = self.STATE_IDLE

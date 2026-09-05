@@ -65,6 +65,7 @@ class MainWindow(QMainWindow):
             )
 
         self.app_context = app_context
+        self._session = app_context.session
         self._logout_in_progress = False
 
         self.setObjectName("mainWindow")
@@ -176,6 +177,9 @@ class MainWindow(QMainWindow):
                 self.app_context.student_profile_service
             ),
             student_export_service=self.app_context.student_export_service,
+            excel_permission_check=self._bound_permission(
+                self.app_context.can_manage_students
+            ),
             parent=self.page_stack,
         )
         self.pages["students"] = students_page
@@ -199,6 +203,9 @@ class MainWindow(QMainWindow):
                 self.app_context.score_import_commit_service
             ),
             score_export_service=self.app_context.score_export_service,
+            excel_permission_check=self._bound_permission(
+                self.app_context.can_manage_scores
+            ),
             parent=self.page_stack,
         )
         self.pages["scores"] = scores_page
@@ -212,6 +219,9 @@ class MainWindow(QMainWindow):
             support_read_service=self.app_context.report_service,
             support_report_service=self.app_context.report_service,
             report_export_service=self.app_context.report_export_service,
+            excel_permission_check=self._bound_permission(
+                self.app_context.can_manage_support
+            ),
             intervention_detail_service=self.app_context.support_service,
             intervention_planning_service=self.app_context.support_service,
             intervention_start_service=self.app_context.support_service,
@@ -234,6 +244,9 @@ class MainWindow(QMainWindow):
             academic_service=self.app_context.academic_service,
             report_service=self.app_context.report_service,
             excel_writer=self.app_context.report_export_service,
+            excel_allowed=self._bound_permission(
+                self.app_context.can_view_reports
+            ),
             parent=self.page_stack,
         )
         self.pages["reports"] = reports_page
@@ -269,15 +282,7 @@ class MainWindow(QMainWindow):
         )
 
     def _apply_navigation_permissions(self) -> None:
-        permissions = {
-            "dashboard": True,
-            "students": self.app_context.can_manage_students(),
-            "scores": self.app_context.can_manage_scores(),
-            "support": self.app_context.can_manage_support(),
-            "reports": self.app_context.can_view_reports(),
-            "catalogs": self.app_context.can_manage_catalogs(),
-            "system": self.app_context.can_access_system(),
-        }
+        permissions = self._current_navigation_permissions()
 
         self._navigation_permissions = permissions
 
@@ -297,11 +302,35 @@ class MainWindow(QMainWindow):
             )
 
         return bool(
-            self._navigation_permissions.get(
-                key,
-                False,
-            )
+            self._current_navigation_permissions().get(key, False)
         )
+
+    def _current_navigation_permissions(self) -> dict[str, bool]:
+        if (
+            not self.app_context.is_authenticated
+            or self.app_context.session is not self._session
+        ):
+            return {key: False for key in self.PAGE_TITLES}
+        return {
+            "dashboard": True,
+            "students": self.app_context.can_manage_students(),
+            "scores": self.app_context.can_manage_scores(),
+            "support": self.app_context.can_manage_support(),
+            "reports": self.app_context.can_view_reports(),
+            "catalogs": self.app_context.can_manage_catalogs(),
+            "system": self.app_context.can_access_system(),
+        }
+
+    def _bound_permission(self, check):
+        session = self._session
+
+        def guarded() -> bool:
+            return (
+                self.app_context.session is session
+                and bool(check())
+            )
+
+        return guarded
 
     def navigate_to(
         self,

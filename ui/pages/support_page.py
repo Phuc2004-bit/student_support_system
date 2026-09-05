@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from models.dto.report_dto import SupportReportRow
 from models.dto.report_export import SupportReportExportData
 from exceptions import ReportExportError, ValidationError
+from ui.action_permissions import action_is_allowed, apply_action_permission
 from services.support_read_contract import (
     InterventionDetailServiceContract,
     SupportReadServiceContract,
@@ -92,6 +93,7 @@ class SupportPage(QWidget):
         parent: QWidget | None = None,
         support_report_service=None,
         report_export_service=None,
+        excel_permission_check=None,
     ) -> None:
         super().__init__(parent)
         self.academic_service = academic_service
@@ -111,11 +113,16 @@ class SupportPage(QWidget):
             support_report_service or support_read_service
         )
         self.report_export_service = report_export_service
+        self.excel_permission_check = excel_permission_check
         self._items: tuple[SupportReportRow, ...] = ()
         self._load_state = self.STATE_IDLE
         self.setObjectName("supportPage")
         self._build_ui()
         self._connect_signals()
+        apply_action_permission(
+            self.export_button,
+            self.excel_permission_check,
+        )
 
     @property
     def items(self) -> tuple[SupportReportRow, ...]:
@@ -299,6 +306,11 @@ class SupportPage(QWidget):
             self._show_empty(self.EMPTY_MESSAGE)
 
     def export_support_cases(self) -> bool:
+        if not action_is_allowed(self.excel_permission_check):
+            self._show_export_error(
+                "Bạn không có quyền xuất danh sách bổ trợ."
+            )
+            return False
         filters = self.current_filters()
         context = self.filter_widget.export_context()
         if context is None:

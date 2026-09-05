@@ -4,15 +4,21 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton
 
 from exceptions import ReportExportError, ValidationError
 from models.dto.report_export import SupportReportExportData
+from ui.action_permissions import action_is_allowed, apply_action_permission
 
 
 class ReportExcelActions:
-    def _configure_excel_actions(self, writer) -> None:
+    def _configure_excel_actions(self, writer, permission_check=None) -> None:
         self.report_export_service = writer
+        self.excel_permission_check = permission_check
 
     def _add_excel_action(self, layout) -> None:
         self.export_button = QPushButton("Xuất Excel", self)
         self.export_button.setObjectName("exportReportsExcelButton")
+        apply_action_permission(
+            self.export_button,
+            self.excel_permission_check,
+        )
         layout.addWidget(self.export_button)
 
     def _connect_excel_action(self) -> None:
@@ -21,6 +27,11 @@ class ReportExcelActions:
         )
 
     def export_report(self) -> bool:
+        if not action_is_allowed(self.excel_permission_check):
+            self._show_export_error(
+                "Bạn không có quyền xuất báo cáo Excel."
+            )
+            return False
         filters = self.current_filters()
         context = self.filter_widget.export_context()
         if context is None:

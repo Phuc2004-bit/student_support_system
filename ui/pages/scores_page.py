@@ -24,6 +24,7 @@ from models.dto.score import ScoreCreateData, ScoreRosterItem
 from models.dto.score_import import ScoreImportContext, ScoreImportTemplateStudent
 from models.dto.data_export import ScoreExportContext
 from services.data_export_contract import ScoreExportServiceContract
+from ui.action_permissions import action_is_allowed, apply_action_permission
 from services.enrollment_contract import EnrollmentServiceContract
 from services.score_contract import (
     ScoreServiceContract as ScoreWriterContract,
@@ -83,6 +84,7 @@ class ScoresPage(QWidget):
         score_import_commit_service=None,
         parent=None,
         score_export_service: ScoreExportServiceContract | None = None,
+        excel_permission_check=None,
     ):
         super().__init__(parent)
         self.academic_service = academic_service
@@ -93,6 +95,7 @@ class ScoresPage(QWidget):
         self.score_import_preview_service = score_import_preview_service
         self.score_import_commit_service = score_import_commit_service
         self.score_export_service = score_export_service
+        self.excel_permission_check = excel_permission_check
         self._enrollments: tuple[EnrollmentListItem, ...] = ()
         self._score_rows: tuple[ScoreRosterItem, ...] = ()
         self._saved_enrollment_ids: set[int] = set()
@@ -100,6 +103,12 @@ class ScoresPage(QWidget):
         self._original_score_text = ""
         self.setObjectName("scoresPage")
         self._build_ui()
+        for button in (
+            self.download_template_button,
+            self.import_excel_button,
+            self.export_button,
+        ):
+            apply_action_permission(button, self.excel_permission_check)
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -279,6 +288,9 @@ class ScoresPage(QWidget):
         )
 
     def export_scores(self) -> bool:
+        if not action_is_allowed(self.excel_permission_check):
+            self._show_export_error("Bạn không có quyền xuất bảng điểm.")
+            return False
         context = self.score_export_context()
         if context is None:
             return False
@@ -312,6 +324,11 @@ class ScoresPage(QWidget):
         QMessageBox.warning(self, "Xuất bảng điểm", message)
 
     def download_import_template(self) -> bool:
+        if not action_is_allowed(self.excel_permission_check):
+            self._show_import_error(
+                "Bạn không có quyền tải file mẫu nhập điểm."
+            )
+            return False
         context = self.score_import_context()
         if context is None:
             return False
@@ -346,6 +363,11 @@ class ScoresPage(QWidget):
         return True
 
     def import_scores_from_excel(self) -> bool:
+        if not action_is_allowed(self.excel_permission_check):
+            self._show_import_error(
+                "Bạn không có quyền nhập điểm từ Excel."
+            )
+            return False
         context = self.score_import_context()
         if context is None:
             return False
@@ -390,6 +412,11 @@ class ScoresPage(QWidget):
             QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
+            return False
+        if not action_is_allowed(self.excel_permission_check):
+            self._show_import_error(
+                "Phiên đăng nhập không còn quyền nhập điểm từ Excel."
+            )
             return False
         try:
             result = self.score_import_commit_service.commit_import(preview)

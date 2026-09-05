@@ -22,6 +22,7 @@ from models.dto.student_filter import StudentFilter
 from models.dto.student_list import StudentListItem
 from models.dto.data_export import StudentExportContext
 from services.data_export_contract import StudentExportServiceContract
+from ui.action_permissions import action_is_allowed, apply_action_permission
 from services.enrollment_contract import EnrollmentServiceContract
 from services.student_contract import (
     StudentListServiceContract,
@@ -83,6 +84,7 @@ class StudentsPage(QWidget):
         profile_dialog_factory=StudentProfileDialog,
         parent: QWidget | None = None,
         student_export_service: StudentExportServiceContract | None = None,
+        excel_permission_check=None,
     ) -> None:
         super().__init__(parent)
 
@@ -95,6 +97,7 @@ class StudentsPage(QWidget):
         self.student_profile_service = student_profile_service
         self.profile_dialog_factory = profile_dialog_factory
         self.student_export_service = student_export_service
+        self.excel_permission_check = excel_permission_check
 
         self._items: tuple[StudentListItem, ...] = ()
         self._last_filter = StudentFilter()
@@ -104,6 +107,10 @@ class StudentsPage(QWidget):
         self.setObjectName("studentsPage")
         self._build_ui()
         self._connect_signals()
+        apply_action_permission(
+            self.export_button,
+            self.excel_permission_check,
+        )
 
     @property
     def items(self) -> tuple[StudentListItem, ...]:
@@ -273,6 +280,12 @@ class StudentsPage(QWidget):
         )
 
     def export_students(self) -> bool:
+        if not action_is_allowed(self.excel_permission_check):
+            self._show_error(
+                "Không có quyền",
+                PermissionError("Bạn không có quyền xuất danh sách học sinh."),
+            )
+            return False
         if self.student_export_service is None:
             self._show_error(
                 "Xuất Excel",
