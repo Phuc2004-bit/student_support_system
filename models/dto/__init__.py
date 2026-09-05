@@ -24,7 +24,7 @@ from models.dto.intervention import (
 )
 from models.dto.student_profile import StudentProfileData
 from models.dto.dashboard import DashboardSummary
-from models.dto.user import User, UserSession
+from models.dto.user import User, UserListItem, UserSession
 from models.dto.import_dto import (
     ScoreImportCommitResult,
     ScoreImportPreview,
@@ -54,6 +54,7 @@ __all__ = [
     "DashboardSummary",
     "User",
     "UserSession",
+    "UserListItem",
     "ScoreImportCommitResult",
     "ScoreImportPreview",
     "ScoreImportPreviewRow",

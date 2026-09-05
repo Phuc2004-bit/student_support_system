@@ -1,15 +1,19 @@
 import re
 
 import bcrypt
+import pyodbc
 
 from database.connection import DatabaseManager
 from exceptions import (
+    BusinessRuleError,
+    DatabaseError,
     DuplicateError,
     ValidationError,
 )
-from models.dto import User
+from models.dto import User, UserListItem, UserSession
 from models.enums import UserRole
 from repositories import UserRepository
+from services.permission_service import PermissionService
 
 
 class UserService:
@@ -52,37 +56,38 @@ class UserService:
 
         self._validate_password(password)
         self._validate_role(role)
+        if not isinstance(is_active, bool):
+            raise ValidationError(
+                "Trạng thái hoạt động không hợp lệ."
+            )
         self._validate_email(email)
         self._validate_phone(phone)
 
-        with self.db.transaction() as connection:
-
-            existing = (
-                self.user_repository.get_by_username(
+        try:
+            with self.db.transaction() as connection:
+                existing = self.user_repository.get_by_username(
                     connection,
                     username,
                 )
-            )
-
-            if existing is not None:
-                raise DuplicateError(
-                    "Tên đăng nhập đã tồn tại."
+                if existing is not None:
+                    raise DuplicateError(
+                        "Tên đăng nhập đã tồn tại."
+                    )
+                password_hash = self._hash_password(password)
+                return self.user_repository.create(
+                    connection=connection,
+                    username=username,
+                    password_hash=password_hash,
+                    full_name=full_name,
+                    role=role,
+                    email=email,
+                    phone=phone,
+                    is_active=is_active,
                 )
-
-            password_hash = self._hash_password(
-                password
-            )
-
-            return self.user_repository.create(
-                connection=connection,
-                username=username,
-                password_hash=password_hash,
-                full_name=full_name,
-                role=role,
-                email=email,
-                phone=phone,
-                is_active=is_active,
-            )
+        except pyodbc.IntegrityError as exc:
+            raise DuplicateError("Tên đăng nhập đã tồn tại.") from exc
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể tạo người dùng.") from exc
 
     # =====================================================
     # READ
@@ -140,6 +145,134 @@ class UserService:
             return self.user_repository.list_active_teachers(
                 connection
             )
+
+    # =====================================================
+    # ADMIN MANAGEMENT
+    # =====================================================
+
+    def admin_list_users(
+        self,
+        actor: UserSession,
+        search: str | None = None,
+    ) -> list[UserListItem]:
+        PermissionService.require_manage_users(actor)
+        if search is not None and not isinstance(search, str):
+            raise ValidationError("Từ khóa tìm kiếm không hợp lệ.")
+        normalized_search = search.strip() if search else None
+        with self.db.transaction() as connection:
+            return self.user_repository.list_for_management(
+                connection,
+                normalized_search or None,
+            )
+
+    def admin_create_user(
+        self,
+        actor: UserSession,
+        username: str,
+        password: str,
+        full_name: str,
+        role: UserRole,
+        email: str | None = None,
+        phone: str | None = None,
+        is_active: bool = True,
+    ) -> User:
+        PermissionService.require_manage_users(actor)
+        return self.create_user(
+            username,
+            password,
+            full_name,
+            role,
+            email,
+            phone,
+            is_active,
+        )
+
+    def admin_update_user(
+        self,
+        actor: UserSession,
+        user_id: int,
+        full_name: str,
+        role: UserRole,
+        email: str | None = None,
+        phone: str | None = None,
+    ) -> User:
+        PermissionService.require_manage_users(actor)
+        self._validate_user_id(user_id)
+        full_name = self._normalize_full_name(full_name)
+        email = self._normalize_optional(email)
+        phone = self._normalize_optional(phone)
+        self._validate_role(role)
+        self._validate_email(email)
+        self._validate_phone(phone)
+        try:
+            with self.db.transaction() as connection:
+                existing = self.user_repository.get_by_id(connection, user_id)
+                if existing is None:
+                    raise ValidationError("Không tìm thấy người dùng.")
+                if existing.role == UserRole.ADMIN and role != UserRole.ADMIN:
+                    if actor.user_id == user_id:
+                        raise BusinessRuleError(
+                            "Không thể tự hạ quyền tài khoản đang đăng nhập."
+                        )
+                    if (
+                        existing.is_active
+                        and self.user_repository.count_active_admins(connection) <= 1
+                    ):
+                        raise BusinessRuleError(
+                            "Hệ thống phải còn ít nhất một ADMIN đang hoạt động."
+                        )
+                updated = self.user_repository.update_management_details(
+                    connection,
+                    user_id,
+                    full_name,
+                    role,
+                    email,
+                    phone,
+                )
+                if updated is None:
+                    raise ValidationError("Không thể cập nhật người dùng.")
+                return updated
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật người dùng.") from exc
+
+    def admin_set_user_active(
+        self,
+        actor: UserSession,
+        user_id: int,
+        is_active: bool,
+    ) -> User:
+        PermissionService.require_manage_users(actor)
+        self._validate_user_id(user_id)
+        if not isinstance(is_active, bool):
+            raise ValidationError("Trạng thái hoạt động không hợp lệ.")
+        try:
+            with self.db.transaction() as connection:
+                existing = self.user_repository.get_by_id(connection, user_id)
+                if existing is None:
+                    raise ValidationError("Không tìm thấy người dùng.")
+                if not is_active:
+                    if actor.user_id == user_id:
+                        raise BusinessRuleError(
+                            "Không thể vô hiệu hóa tài khoản đang đăng nhập."
+                        )
+                    if (
+                        existing.role == UserRole.ADMIN
+                        and existing.is_active
+                        and self.user_repository.count_active_admins(connection) <= 1
+                    ):
+                        raise BusinessRuleError(
+                            "Hệ thống phải còn ít nhất một ADMIN đang hoạt động."
+                        )
+                updated = self.user_repository.set_active(
+                    connection,
+                    user_id,
+                    is_active,
+                )
+                if updated is None:
+                    raise ValidationError("Không thể cập nhật người dùng.")
+                return updated
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể cập nhật người dùng.") from exc
 
     # =====================================================
     # UPDATE PROFILE
@@ -353,6 +486,15 @@ class UserService:
     # =====================================================
     # VALIDATION
     # =====================================================
+
+    @staticmethod
+    def _validate_user_id(user_id: int) -> None:
+        if (
+            isinstance(user_id, bool)
+            or not isinstance(user_id, int)
+            or user_id <= 0
+        ):
+            raise ValidationError("user_id không hợp lệ.")
 
     @staticmethod
     def _normalize_username(

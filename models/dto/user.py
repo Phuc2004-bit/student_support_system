@@ -24,3 +24,16 @@ class UserSession:
     username: str
     full_name: str
     role: UserRole
+
+
+@dataclass(frozen=True, slots=True)
+class UserListItem:
+    user_id: int
+    username: str
+    full_name: str
+    role: UserRole
+    email: str | None
+    phone: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
