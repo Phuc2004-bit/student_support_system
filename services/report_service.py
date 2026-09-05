@@ -107,9 +107,34 @@ class ReportService:
                 status=normalized_status,
             )
 
+        if normalized_status is not None:
+            summary = self._summary_from_rows(rows)
+
         return SupportReportData(
             summary=summary,
             rows=tuple(rows),
+        )
+
+    @staticmethod
+    def _summary_from_rows(
+        rows: list[SupportReportRow],
+    ) -> SupportReportSummary:
+        counts = {
+            status.value: 0
+            for status in InterventionStatus
+        }
+        for row in rows:
+            counts[row.status] += 1
+        return SupportReportSummary(
+            total_cases=len(rows),
+            detected_count=counts[InterventionStatus.DETECTED.value],
+            planned_count=counts[InterventionStatus.PLANNED.value],
+            in_progress_count=counts[InterventionStatus.IN_PROGRESS.value],
+            waiting_review_count=counts[
+                InterventionStatus.WAITING_REVIEW.value
+            ],
+            continue_count=counts[InterventionStatus.CONTINUE.value],
+            completed_count=counts[InterventionStatus.COMPLETED.value],
         )
 
     @classmethod
