@@ -210,6 +210,8 @@ class MainWindow(QMainWindow):
         support_page = SupportPage(
             academic_service=self.app_context.academic_service,
             support_read_service=self.app_context.report_service,
+            support_report_service=self.app_context.report_service,
+            report_export_service=self.app_context.report_export_service,
             intervention_detail_service=self.app_context.support_service,
             intervention_planning_service=self.app_context.support_service,
             intervention_start_service=self.app_context.support_service,
@@ -231,6 +233,7 @@ class MainWindow(QMainWindow):
         reports_page = ReportsPage(
             academic_service=self.app_context.academic_service,
             report_service=self.app_context.report_service,
+            excel_writer=self.app_context.report_export_service,
             parent=self.page_stack,
         )
         self.pages["reports"] = reports_page

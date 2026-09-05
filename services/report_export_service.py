@@ -103,7 +103,7 @@ class ReportExportService:
         for label_cell, label, value_cell, value in context_values:
             worksheet[label_cell] = label
             worksheet[label_cell].font = Font(bold=True)
-            worksheet[value_cell] = value
+            self._set_text(worksheet[value_cell], value)
 
         worksheet.merge_cells("A6:B6")
         worksheet["A6"] = "Tổng quan"
@@ -151,7 +151,11 @@ class ReportExportService:
                 review_result_label(item.latest_review_result),
             )
             for column, value in enumerate(values, start=1):
-                worksheet.cell(row_index, column, value)
+                cell = worksheet.cell(row_index, column)
+                if isinstance(value, str):
+                    self._set_text(cell, value)
+                else:
+                    cell.value = value
 
             worksheet.cell(row_index, 9).number_format = "dd/mm/yyyy"
             if item.latest_review_date is not None:
@@ -216,6 +220,11 @@ class ReportExportService:
         status: str | InterventionStatus,
     ) -> str:
         return status.value if isinstance(status, InterventionStatus) else status
+
+    @staticmethod
+    def _set_text(cell, value: str) -> None:
+        cell.value = str(value)
+        cell.data_type = "s"
 
     @staticmethod
     def _validate_output_path(output_path: str | Path) -> Path:

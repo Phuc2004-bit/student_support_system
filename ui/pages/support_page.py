@@ -5,11 +5,14 @@ from collections.abc import Iterable
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QFileDialog,
     QFrame,
     QHeaderView,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
+    QToolButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -17,6 +20,8 @@ from PySide6.QtWidgets import (
 )
 
 from models.dto.report_dto import SupportReportRow
+from models.dto.report_export import SupportReportExportData
+from exceptions import ReportExportError, ValidationError
 from services.support_read_contract import (
     InterventionDetailServiceContract,
     SupportReadServiceContract,
@@ -85,6 +90,8 @@ class SupportPage(QWidget):
         user_service: ResponsibleUserServiceContract | None = None,
         detail_dialog_factory=InterventionDetailDialog,
         parent: QWidget | None = None,
+        support_report_service=None,
+        report_export_service=None,
     ) -> None:
         super().__init__(parent)
         self.academic_service = academic_service
@@ -100,6 +107,10 @@ class SupportPage(QWidget):
         self.assessment_service = assessment_service
         self.user_service = user_service
         self.detail_dialog_factory = detail_dialog_factory
+        self.support_report_service = (
+            support_report_service or support_read_service
+        )
+        self.report_export_service = report_export_service
         self._items: tuple[SupportReportRow, ...] = ()
         self._load_state = self.STATE_IDLE
         self.setObjectName("supportPage")
@@ -131,6 +142,10 @@ class SupportPage(QWidget):
         heading.addLayout(titles)
         heading.addStretch(1)
         self.refresh_button = QPushButton("Làm mới", self)
+        self.export_button = QToolButton(self)
+        self.export_button.setText("Xuất Excel")
+        self.export_button.setObjectName("exportSupportExcelButton")
+        heading.addWidget(self.export_button)
         heading.addWidget(self.refresh_button)
         root.addLayout(heading)
 
@@ -192,6 +207,9 @@ class SupportPage(QWidget):
         )
         self.refresh_button.clicked.connect(
             self.refresh_support_cases
+        )
+        self.export_button.clicked.connect(
+            lambda _checked=False: self.export_support_cases()
         )
         self.table.cellDoubleClicked.connect(
             self._on_row_activated
@@ -279,6 +297,78 @@ class SupportPage(QWidget):
             self.refresh_button.setEnabled(True)
         else:
             self._show_empty(self.EMPTY_MESSAGE)
+
+    def export_support_cases(self) -> bool:
+        filters = self.current_filters()
+        context = self.filter_widget.export_context()
+        if context is None:
+            self.state_label.setText(
+                "Vui lòng chọn năm học để xuất danh sách bổ trợ."
+            )
+            return False
+        if (
+            self.support_report_service is None
+            or self.report_export_service is None
+        ):
+            self._show_export_error(
+                "Chưa có đầy đủ dịch vụ xuất danh sách bổ trợ."
+            )
+            return False
+        output_path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Xuất danh sách bổ trợ",
+            "danh_sach_bo_tro.xlsx",
+            "Excel Workbook (*.xlsx)",
+        )
+        if not output_path:
+            return False
+        if not output_path.lower().endswith(".xlsx"):
+            output_path += ".xlsx"
+        try:
+            reader = getattr(
+                self.support_report_service,
+                "get_support_report",
+            )
+            snapshot = reader(
+                school_year_id=filters.school_year_id,
+                grade_id=filters.grade_id,
+                class_id=filters.class_id,
+                subject_id=filters.subject_id,
+                status=filters.status,
+            )
+        except Exception:
+            self._show_export_error(
+                "Không thể đọc dữ liệu xuất. Vui lòng thử lại."
+            )
+            return False
+        try:
+            writer = getattr(
+                self.report_export_service,
+                "export_" "xlsx",
+            )
+            writer(
+                SupportReportExportData(context=context, report=snapshot),
+                output_path,
+            )
+        except Exception as exc:
+            self._show_export_error(self._export_error_message(exc))
+            return False
+        QMessageBox.information(
+            self,
+            "Xuất Excel",
+            "Đã xuất danh sách bổ trợ Excel thành công.",
+        )
+        return True
+
+    def _show_export_error(self, message: str) -> None:
+        self.state_label.setText(message)
+        QMessageBox.warning(self, "Xuất danh sách bổ trợ", message)
+
+    @staticmethod
+    def _export_error_message(exc: Exception) -> str:
+        if isinstance(exc, (ReportExportError, ValidationError)):
+            return str(exc)
+        return "Không thể xuất danh sách bổ trợ. Vui lòng thử lại."
 
     def intervention_id_at_row(self, row: int) -> int | None:
         if row < 0 or row >= self.table.rowCount():

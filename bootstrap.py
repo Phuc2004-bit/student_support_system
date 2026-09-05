@@ -17,6 +17,7 @@ from services.score_import_preview_service import ScoreImportPreviewService
 from services.score_import_commit_service import ScoreImportCommitService
 from services.data_export_service import StudentExportService, ScoreExportService
 from services.report_service import ReportService
+from services.report_export_service import ReportExportService
 from services.support_service import SupportService
 from services.user_service import UserService
 from app_context import AppContext
@@ -53,6 +54,7 @@ def build_app_context() -> AppContext:
     student_export_service = StudentExportService(student_list_service)
     score_export_service = ScoreExportService(score_service)
     report_service = ReportService(db=db)
+    report_export_service = ReportExportService()
     support_service = SupportService(db=db)
     user_service = UserService(db=db)
 
@@ -74,6 +76,7 @@ def build_app_context() -> AppContext:
         student_export_service=student_export_service,
         score_export_service=score_export_service,
         report_service=report_service,
+        report_export_service=report_export_service,
         support_service=support_service,
         user_service=user_service,
     )

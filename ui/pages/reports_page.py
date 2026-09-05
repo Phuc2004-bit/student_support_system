@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from models.dto.dashboard_dto import DashboardStatusItem
 from models.dto.report_dto import SupportReportData
+from ui.report_excel_actions import ReportExcelActions
 from ui.widgets.dashboard_charts import DashboardBarChart
 from ui.widgets.kpi_card import KpiCard
 from ui.widgets.support_filter_widget import (
@@ -26,7 +27,7 @@ from ui.widgets.support_filter_widget import (
 from utils.report_labels import review_result_label, status_label
 
 
-class ReportsPage(QWidget):
+class ReportsPage(ReportExcelActions, QWidget):
     STATE_IDLE = "idle"
     STATE_LOADING = "loading"
     STATE_READY = "ready"
@@ -74,11 +75,14 @@ class ReportsPage(QWidget):
         academic_service=None,
         report_service=None,
         parent: QWidget | None = None,
+        excel_writer=None,
     ) -> None:
         super().__init__(parent)
         self.academic_service = academic_service
         self.report_service = report_service
+        self._configure_excel_actions(excel_writer)
         self.report_data: SupportReportData | None = None
+        self._report_filters: SupportFilterSelection | None = None
         self._load_state = self.STATE_IDLE
         self.setObjectName("reportsPage")
         self._build_ui()
@@ -105,6 +109,7 @@ class ReportsPage(QWidget):
         heading.addLayout(titles)
         heading.addStretch(1)
         self.refresh_button = QPushButton("Làm mới", self)
+        self._add_excel_action(heading)
         heading.addWidget(self.refresh_button)
         root.addLayout(heading)
 
@@ -245,6 +250,7 @@ class ReportsPage(QWidget):
             self._on_filters_changed
         )
         self.refresh_button.clicked.connect(self.refresh_report)
+        self._connect_excel_action()
 
     def initialize_reports(self) -> bool:
         if self.academic_service is None:
@@ -283,6 +289,7 @@ class ReportsPage(QWidget):
             return False
 
         self.report_data = data
+        self._report_filters = filters
         self.set_report_data(data)
         if not data.rows:
             self._show_empty(self.EMPTY_MESSAGE, clear_data=False)
@@ -406,12 +413,14 @@ class ReportsPage(QWidget):
         self._load_state = self.STATE_EMPTY
         if clear_data:
             self.report_data = None
+            self._report_filters = None
             self._clear_report_display()
         self.state_label.setText(message)
         self.refresh_button.setEnabled(True)
 
     def _show_error(self) -> None:
         self.report_data = None
+        self._report_filters = None
         self._clear_report_display()
         self._load_state = self.STATE_ERROR
         self.state_label.setText(

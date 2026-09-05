@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from models.enums import InterventionStatus
+from models.dto.report_export import SupportReportExportContext
 from ui.widgets.dashboard_charts import status_label
 
 
@@ -113,6 +114,34 @@ class SupportFilterWidget(QWidget):
             class_id=self.class_combo.currentData(),
             subject_id=self.subject_combo.currentData(),
             status=self.status_combo.currentData(),
+        )
+
+    def export_context(self) -> SupportReportExportContext | None:
+        selection = self.current_value()
+        if selection.school_year_id is None:
+            return None
+        return SupportReportExportContext(
+            school_year_id=selection.school_year_id,
+            school_year_name=self.school_year_combo.currentText(),
+            grade_id=selection.grade_id,
+            grade_name=(
+                self.grade_combo.currentText()
+                if selection.grade_id is not None
+                else None
+            ),
+            class_id=selection.class_id,
+            class_name=(
+                self.class_combo.currentText()
+                if selection.class_id is not None
+                else None
+            ),
+            subject_id=selection.subject_id,
+            subject_name=(
+                self.subject_combo.currentText()
+                if selection.subject_id is not None
+                else None
+            ),
+            status=selection.status,
         )
 
     def _reset_options(self) -> None:
