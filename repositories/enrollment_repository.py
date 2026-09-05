@@ -202,6 +202,44 @@ class EnrollmentRepository:
             for row in cursor.fetchall()
         ]
 
+    def list_by_student_ids(
+        self,
+        connection: pyodbc.Connection,
+        student_ids: tuple[str, ...],
+    ) -> list[EnrollmentListItem]:
+        if not student_ids:
+            return []
+        placeholders = ", ".join("?" for _ in student_ids)
+        cursor = connection.cursor()
+        cursor.execute(
+            f"""
+            SELECT
+                e.enrollment_id,
+                e.student_id,
+                s.student_code,
+                s.full_name,
+                e.class_id,
+                c.class_name,
+                g.grade_number,
+                sy.school_year_id,
+                sy.year_name AS school_year_name,
+                e.status
+            FROM dbo.STUDENT_ENROLLMENTS e
+            INNER JOIN dbo.STUDENTS s
+                ON s.student_id = e.student_id
+            INNER JOIN dbo.CLASSES c
+                ON c.class_id = e.class_id
+            INNER JOIN dbo.GRADES g
+                ON g.grade_id = c.grade_id
+            INNER JOIN dbo.SCHOOL_YEARS sy
+                ON sy.school_year_id = c.school_year_id
+            WHERE e.student_id IN ({placeholders})
+            ORDER BY e.student_id, sy.start_date, e.enrollment_id
+            """,
+            *student_ids,
+        )
+        return [self._map_list_item(row) for row in cursor.fetchall()]
+
     def set_status(
         self,
         connection: pyodbc.Connection,

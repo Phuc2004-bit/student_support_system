@@ -10,6 +10,7 @@ from services.permission_service import PermissionService
 from services.import_service import ImportService
 from services.score_import_parser import ScoreImportWorkbookParser
 from services.score_import_template_service import ScoreImportTemplateService
+from services.score_import_preview_service import ScoreImportPreviewService
 
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     "ImportService",
     "ScoreImportWorkbookParser",
     "ScoreImportTemplateService",
+    "ScoreImportPreviewService",
 ]

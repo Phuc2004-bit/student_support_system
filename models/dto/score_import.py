@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from decimal import Decimal
+from enum import Enum
 from typing import Any
 
 
@@ -31,11 +32,21 @@ class ScoreImportSourceMetadata:
     assessment_name: str | None = None
 
 
+class ScoreImportIssueSeverity(str, Enum):
+    ERROR = "ERROR"
+    WARNING = "WARNING"
+
+
 @dataclass(frozen=True, slots=True)
 class ScoreImportIssue:
     code: str
     field: str
     message: str
+    severity: ScoreImportIssueSeverity = ScoreImportIssueSeverity.ERROR
+
+    @property
+    def is_blocking(self) -> bool:
+        return self.severity == ScoreImportIssueSeverity.ERROR
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,3 +70,35 @@ class ScoreImportWorkbook:
     metadata: ScoreImportSourceMetadata
     rows: tuple[ScoreImportRow, ...]
 
+
+@dataclass(frozen=True, slots=True)
+class ScoreImportPreviewRow:
+    row_number: int
+    student_id: str
+    student_name_excel: str | None
+    student_name_db: str | None
+    enrollment_id: int | None
+    normalized_score: Decimal | None
+    issues: tuple[ScoreImportIssue, ...] = field(default_factory=tuple)
+
+    @property
+    def is_valid(self) -> bool:
+        return not any(issue.is_blocking for issue in self.issues)
+
+
+@dataclass(frozen=True, slots=True)
+class ScoreImportPreview:
+    context: ScoreImportContext
+    rows: tuple[ScoreImportPreviewRow, ...]
+
+    @property
+    def valid_count(self) -> int:
+        return sum(row.is_valid for row in self.rows)
+
+    @property
+    def invalid_count(self) -> int:
+        return len(self.rows) - self.valid_count
+
+    @property
+    def can_commit(self) -> bool:
+        return bool(self.rows) and self.invalid_count == 0

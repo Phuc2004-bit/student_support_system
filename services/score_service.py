@@ -542,6 +542,11 @@ class ScoreService:
             )
 
     @classmethod
+    def normalize_score_value(cls, score_value) -> Decimal:
+        """Validate and normalize a score using the canonical score policy."""
+        return cls._normalize_score_value(score_value)
+
+    @classmethod
     def _normalize_score_value(cls, score_value) -> Decimal:
         if score_value is None or isinstance(score_value, bool):
             raise ValidationError(

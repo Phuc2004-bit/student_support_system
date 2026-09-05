@@ -160,6 +160,37 @@ class StudentRepository:
             for row in cursor.fetchall()
         ]
 
+    def list_by_ids(
+        self,
+        connection: pyodbc.Connection,
+        student_ids: tuple[str, ...],
+    ) -> list[Student]:
+        if not student_ids:
+            return []
+        placeholders = ", ".join("?" for _ in student_ids)
+        cursor = connection.cursor()
+        cursor.execute(
+            f"""
+            SELECT
+                student_id,
+                student_code,
+                full_name,
+                date_of_birth,
+                gender,
+                phone,
+                email,
+                address,
+                status,
+                created_at,
+                updated_at
+            FROM dbo.STUDENTS
+            WHERE student_id IN ({placeholders})
+            ORDER BY student_id
+            """,
+            *student_ids,
+        )
+        return [self._map_student(row) for row in cursor.fetchall()]
+
     def update(
         self,
         connection: pyodbc.Connection,

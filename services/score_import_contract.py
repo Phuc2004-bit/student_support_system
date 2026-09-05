@@ -6,6 +6,7 @@ from typing import Protocol, runtime_checkable
 
 from models.dto.score_import import (
     ScoreImportContext,
+    ScoreImportPreview,
     ScoreImportTemplateStudent,
     ScoreImportWorkbook,
 )
@@ -27,3 +28,12 @@ class ScoreImportTemplateServiceContract(Protocol):
     ) -> Path:
         ...
 
+
+@runtime_checkable
+class ScoreImportPreviewServiceContract(Protocol):
+    def preview_import(
+        self,
+        context: ScoreImportContext,
+        workbook: ScoreImportWorkbook,
+    ) -> ScoreImportPreview:
+        ...
