@@ -290,32 +290,38 @@ class ScoreService:
         normalized = self._normalize_batch(entries)
 
         with self.db.transaction() as connection:
-            support_service = SupportService(
-                db=self.db,
-                score_repository=self.score_repository,
-                academic_repository=self.academic_repository,
-                rule_repository=self.rule_repository,
-                intervention_repository=self.intervention_repository,
-            )
-            scores: list[Score] = []
-            interventions_by_id = {}
+            return self._create_scores_and_detect(connection, normalized)
 
-            for entry in normalized:
-                score = self._create_score(connection, entry)
-                intervention = support_service._detect_from_score(
-                    connection,
-                    score.score_id,
-                )
-                scores.append(score)
-                if intervention is not None:
-                    interventions_by_id[
-                        intervention.intervention_id
-                    ] = intervention
+    def _create_scores_and_detect(
+        self,
+        connection,
+        normalized: tuple[ScoreCreateData, ...],
+    ) -> ScoreBatchDetectionResult:
+        """Create/detect a prevalidated batch using the caller's transaction."""
+        support_service = SupportService(
+            db=self.db,
+            score_repository=self.score_repository,
+            academic_repository=self.academic_repository,
+            rule_repository=self.rule_repository,
+            intervention_repository=self.intervention_repository,
+        )
+        scores: list[Score] = []
+        interventions_by_id = {}
 
-            return ScoreBatchDetectionResult(
-                scores=tuple(scores),
-                interventions=tuple(interventions_by_id.values()),
+        for entry in normalized:
+            score = self._create_score(connection, entry)
+            intervention = support_service._detect_from_score(
+                connection,
+                score.score_id,
             )
+            scores.append(score)
+            if intervention is not None:
+                interventions_by_id[intervention.intervention_id] = intervention
+
+        return ScoreBatchDetectionResult(
+            scores=tuple(scores),
+            interventions=tuple(interventions_by_id.values()),
+        )
 
     # =====================================================
     # READ
@@ -493,6 +499,14 @@ class ScoreService:
                 entry.score_value
             ),
         )
+
+    @classmethod
+    def normalize_score_batch(
+        cls,
+        entries: Iterable[ScoreCreateData],
+    ) -> tuple[ScoreCreateData, ...]:
+        """Validate a complete all-or-nothing score batch without database I/O."""
+        return cls._normalize_batch(entries)
 
     @classmethod
     def _normalize_batch(

@@ -102,3 +102,16 @@ class ScoreImportPreview:
     @property
     def can_commit(self) -> bool:
         return bool(self.rows) and self.invalid_count == 0
+
+
+@dataclass(frozen=True, slots=True)
+class ScoreImportTransactionResult:
+    assessment_id: int
+    imported_count: int
+    intervention_created_count: int
+    score_ids: tuple[int, ...]
+    intervention_ids: tuple[int, ...]
+
+    @property
+    def success(self) -> bool:
+        return True

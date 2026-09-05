@@ -41,6 +41,7 @@ from models.dto.score_import import (
     ScoreImportRow,
     ScoreImportSourceMetadata,
     ScoreImportTemplateStudent,
+    ScoreImportTransactionResult,
     ScoreImportWorkbook,
 )
 
@@ -82,5 +83,6 @@ __all__ = [
     "ScoreImportRow",
     "ScoreImportSourceMetadata",
     "ScoreImportTemplateStudent",
+    "ScoreImportTransactionResult",
     "ScoreImportWorkbook",
 ]

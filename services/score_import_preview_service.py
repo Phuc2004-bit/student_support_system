@@ -12,6 +12,8 @@ from models.dto.score_import import (
     ScoreImportIssueSeverity,
     ScoreImportPreview,
     ScoreImportPreviewRow,
+    ScoreImportRow,
+    ScoreImportSourceMetadata,
     ScoreImportWorkbook,
 )
 from models.enums import AssessmentStatus, EnrollmentStatus
@@ -47,30 +49,35 @@ class ScoreImportPreviewService:
         workbook: ScoreImportWorkbook,
     ) -> ScoreImportPreview:
         self._validate_input(context, workbook)
-        student_ids = tuple(
-            dict.fromkeys(row.student_id for row in workbook.rows if row.student_id)
-        )
         try:
             with self.db.transaction() as connection:
-                self._validate_context(connection, context)
-                students = self.student_repository.list_by_ids(
-                    connection, student_ids
-                )
-                enrollments = self.enrollment_repository.list_by_student_ids(
-                    connection, student_ids
-                )
-                roster = self.score_repository.list_by_class_assessment(
-                    connection,
-                    context.class_id,
-                    context.school_year_id,
-                    context.assessment_id,
-                    EnrollmentStatus.ACTIVE,
-                )
+                return self._build_preview(connection, context, workbook)
         except pyodbc.Error as exc:
             raise DatabaseError(
                 "Không thể đọc dữ liệu để kiểm tra file nhập điểm."
             ) from exc
 
+    def _build_preview(
+        self,
+        connection,
+        context: ScoreImportContext,
+        workbook: ScoreImportWorkbook,
+    ) -> ScoreImportPreview:
+        self._validate_context(connection, context)
+        student_ids = tuple(
+            dict.fromkeys(row.student_id for row in workbook.rows if row.student_id)
+        )
+        students = self.student_repository.list_by_ids(connection, student_ids)
+        enrollments = self.enrollment_repository.list_by_student_ids(
+            connection, student_ids
+        )
+        roster = self.score_repository.list_by_class_assessment(
+            connection,
+            context.class_id,
+            context.school_year_id,
+            context.assessment_id,
+            EnrollmentStatus.ACTIVE,
+        )
         students_by_id = {student.student_id: student for student in students}
         enrollments_by_student = defaultdict(list)
         for enrollment in enrollments:
@@ -96,6 +103,54 @@ class ScoreImportPreviewService:
             for row in workbook.rows
         )
         return ScoreImportPreview(context=context, rows=preview_rows)
+
+    def _revalidate_preview(
+        self,
+        connection,
+        preview: ScoreImportPreview,
+    ) -> ScoreImportPreview:
+        workbook = ScoreImportWorkbook(
+            file_name="commit-preview",
+            sheet_name="commit-preview",
+            metadata=ScoreImportSourceMetadata(),
+            rows=tuple(
+                ScoreImportRow(
+                    row_number=row.row_number,
+                    student_id=row.student_id,
+                    student_name=row.student_name_excel,
+                    raw_score=row.normalized_score,
+                    normalized_score=row.normalized_score,
+                    issues=tuple(
+                        issue for issue in row.issues if not issue.is_blocking
+                    ),
+                )
+                for row in preview.rows
+            ),
+        )
+        current = self._build_preview(connection, preview.context, workbook)
+        expected = tuple(
+            (
+                row.row_number,
+                row.student_id,
+                row.enrollment_id,
+                row.normalized_score,
+            )
+            for row in preview.rows
+        )
+        actual = tuple(
+            (
+                row.row_number,
+                row.student_id,
+                row.enrollment_id,
+                row.normalized_score,
+            )
+            for row in current.rows
+        )
+        if not current.can_commit or actual != expected:
+            raise ScoreImportError(
+                "Preview không còn phù hợp với dữ liệu hiện tại. Vui lòng preview lại."
+            )
+        return current
 
     @staticmethod
     def _validate_input(context, workbook) -> None:
