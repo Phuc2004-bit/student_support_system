@@ -11,6 +11,10 @@ from services.student_list_service import StudentListService
 from services.student_profile_service import StudentProfileService
 from services.student_service import StudentService
 from services.score_service import ScoreService
+from services.score_import_parser import ScoreImportWorkbookParser
+from services.score_import_template_service import ScoreImportTemplateService
+from services.score_import_preview_service import ScoreImportPreviewService
+from services.score_import_commit_service import ScoreImportCommitService
 from services.report_service import ReportService
 from services.support_service import SupportService
 from services.user_service import UserService
@@ -37,6 +41,14 @@ def build_app_context() -> AppContext:
     enrollment_service = EnrollmentService(db=db)
     student_profile_service = StudentProfileService(db=db)
     score_service = ScoreService(db=db)
+    score_import_parser = ScoreImportWorkbookParser()
+    score_import_template_service = ScoreImportTemplateService()
+    score_import_preview_service = ScoreImportPreviewService(db=db)
+    score_import_commit_service = ScoreImportCommitService(
+        db=db,
+        preview_service=score_import_preview_service,
+        score_service=score_service,
+    )
     report_service = ReportService(db=db)
     support_service = SupportService(db=db)
     user_service = UserService(db=db)
@@ -52,6 +64,10 @@ def build_app_context() -> AppContext:
         enrollment_service=enrollment_service,
         student_profile_service=student_profile_service,
         score_service=score_service,
+        score_import_parser=score_import_parser,
+        score_import_template_service=score_import_template_service,
+        score_import_preview_service=score_import_preview_service,
+        score_import_commit_service=score_import_commit_service,
         report_service=report_service,
         support_service=support_service,
         user_service=user_service,

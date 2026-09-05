@@ -13,6 +13,10 @@ from services.student_list_service import StudentListService
 from services.student_profile_service import StudentProfileService
 from services.student_service import StudentService
 from services.score_service import ScoreService
+from services.score_import_parser import ScoreImportWorkbookParser
+from services.score_import_template_service import ScoreImportTemplateService
+from services.score_import_preview_service import ScoreImportPreviewService
+from services.score_import_commit_service import ScoreImportCommitService
 from services.report_service import ReportService
 from services.support_service import SupportService
 from services.user_service import UserService
@@ -31,6 +35,10 @@ class AppContext:
     enrollment_service: EnrollmentService | None = None
     student_profile_service: StudentProfileService | None = None
     score_service: ScoreService | None = None
+    score_import_parser: ScoreImportWorkbookParser | None = None
+    score_import_template_service: ScoreImportTemplateService | None = None
+    score_import_preview_service: ScoreImportPreviewService | None = None
+    score_import_commit_service: ScoreImportCommitService | None = None
     report_service: ReportService | None = None
     support_service: SupportService | None = None
     user_service: UserService | None = None

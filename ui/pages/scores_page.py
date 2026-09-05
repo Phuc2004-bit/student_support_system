@@ -6,10 +6,12 @@ from decimal import Decimal, InvalidOperation
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QFileDialog,
     QFrame,
     QHeaderView,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -19,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from models.dto.enrollment import EnrollmentListItem
 from models.dto.score import ScoreCreateData, ScoreRosterItem
+from models.dto.score_import import ScoreImportContext, ScoreImportTemplateStudent
 from services.enrollment_contract import EnrollmentServiceContract
 from services.score_contract import (
     ScoreServiceContract as ScoreWriterContract,
@@ -27,6 +30,7 @@ from ui.widgets.score_context_filter_widget import (
     ScoreContextFilterWidget,
     ScoreContextSelection,
 )
+from ui.dialogs.score_import_preview_dialog import ScoreImportPreviewDialog
 
 
 def save_score_batch(
@@ -51,6 +55,10 @@ def detected_support_count(save_result) -> int:
     )
 
 
+def imported_support_case_count(import_result) -> int:
+    return getattr(import_result, "intervention_created_count", 0)
+
+
 class ScoresPage(QWidget):
     scores_saved = Signal(int)
 
@@ -67,12 +75,20 @@ class ScoresPage(QWidget):
         academic_service=None,
         enrollment_service: EnrollmentServiceContract | None = None,
         score_service: ScoreWriterContract | None = None,
+        score_import_parser=None,
+        score_import_template_service=None,
+        score_import_preview_service=None,
+        score_import_commit_service=None,
         parent=None,
     ):
         super().__init__(parent)
         self.academic_service = academic_service
         self.enrollment_service = enrollment_service
         self.score_service = score_service
+        self.score_import_parser = score_import_parser
+        self.score_import_template_service = score_import_template_service
+        self.score_import_preview_service = score_import_preview_service
+        self.score_import_commit_service = score_import_commit_service
         self._enrollments: tuple[EnrollmentListItem, ...] = ()
         self._score_rows: tuple[ScoreRosterItem, ...] = ()
         self._saved_enrollment_ids: set[int] = set()
@@ -93,6 +109,18 @@ class ScoresPage(QWidget):
         )
         root.addWidget(self.title_label)
         root.addWidget(self.subtitle_label)
+
+        import_actions = QHBoxLayout()
+        import_actions.addStretch(1)
+        self.download_template_button = QPushButton("Tải file mẫu", self)
+        self.download_template_button.setObjectName(
+            "downloadScoreImportTemplateButton"
+        )
+        import_actions.addWidget(self.download_template_button)
+        self.import_excel_button = QPushButton("Nhập điểm từ Excel", self)
+        self.import_excel_button.setObjectName("importScoresFromExcelButton")
+        import_actions.addWidget(self.import_excel_button)
+        root.addLayout(import_actions)
 
         self.context_filter = ScoreContextFilterWidget(
             academic_service=self.academic_service,
@@ -185,6 +213,12 @@ class ScoresPage(QWidget):
         self.save_button.clicked.connect(
             lambda _checked=False: self.save_scores()
         )
+        self.download_template_button.clicked.connect(
+            lambda _checked=False: self.download_import_template()
+        )
+        self.import_excel_button.clicked.connect(
+            lambda _checked=False: self.import_scores_from_excel()
+        )
         self._on_context_changed(
             self.context_filter.current_value()
         )
@@ -197,6 +231,124 @@ class ScoresPage(QWidget):
 
     def current_context(self) -> ScoreContextSelection:
         return self.context_filter.current_value()
+
+    def score_import_context(self) -> ScoreImportContext | None:
+        selected = self.current_context()
+        if not selected.is_complete:
+            self.context_status_label.setText(
+                "Vui lòng chọn đầy đủ năm học, khối, lớp, môn học và bài đánh giá."
+            )
+            return None
+        return ScoreImportContext(
+            school_year_id=selected.school_year_id,
+            school_year_name=self.school_year_combo.currentText(),
+            class_id=selected.class_id,
+            class_name=self.class_combo.currentText(),
+            subject_id=selected.subject_id,
+            subject_name=self.subject_combo.currentText(),
+            assessment_id=selected.assessment_id,
+            assessment_name=self.assessment_combo.currentText(),
+        )
+
+    def download_import_template(self) -> bool:
+        context = self.score_import_context()
+        if context is None:
+            return False
+        if self.enrollment_service is None or self.score_import_template_service is None:
+            self._show_import_error("Chưa có dịch vụ tạo file mẫu nhập điểm.")
+            return False
+        output_path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Lưu file mẫu nhập điểm",
+            "mau_nhap_diem.xlsx",
+            "Excel Workbook (*.xlsx)",
+        )
+        if not output_path:
+            return False
+        try:
+            roster = self.enrollment_service.list_class_enrollments(
+                context.class_id, context.school_year_id
+            )
+            template_students = tuple(
+                ScoreImportTemplateStudent(item.student_id, item.full_name)
+                for item in roster
+            )
+            self.score_import_template_service.create_template(
+                context, template_students, output_path
+            )
+        except Exception as exc:
+            self._show_import_error(self._error_message(exc))
+            return False
+        QMessageBox.information(
+            self, "Tải file mẫu", "Đã tạo file mẫu nhập điểm thành công."
+        )
+        return True
+
+    def import_scores_from_excel(self) -> bool:
+        context = self.score_import_context()
+        if context is None:
+            return False
+        if (
+            self.score_import_parser is None
+            or self.score_import_preview_service is None
+            or self.score_import_commit_service is None
+        ):
+            self._show_import_error("Chưa có đầy đủ dịch vụ nhập điểm Excel.")
+            return False
+        file_path, _selected_filter = QFileDialog.getOpenFileName(
+            self,
+            "Chọn file nhập điểm",
+            "",
+            "Excel Workbook (*.xlsx)",
+        )
+        if not file_path:
+            return False
+        try:
+            workbook = self.score_import_parser.parse_workbook(file_path)
+            preview = self.score_import_preview_service.preview_import(
+                context, workbook
+            )
+        except Exception as exc:
+            self._show_import_error(self._error_message(exc))
+            return False
+
+        dialog = ScoreImportPreviewDialog(preview, self)
+        if dialog.exec() != ScoreImportPreviewDialog.DialogCode.Accepted:
+            return False
+        if not preview.can_commit:
+            self._show_import_error(
+                "Preview có dòng lỗi; không thể nhập một phần dữ liệu."
+            )
+            return False
+        answer = QMessageBox.question(
+            self,
+            "Xác nhận nhập điểm",
+            f"Nhập {preview.valid_count} điểm vào hệ thống?\n"
+            "Thao tác sẽ được thực hiện toàn bộ hoặc không ghi dữ liệu nếu có lỗi.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return False
+        try:
+            result = self.score_import_commit_service.commit_import(preview)
+        except Exception as exc:
+            self._show_import_error(self._error_message(exc))
+            return False
+
+        refreshed = self.load_students()
+        message = (
+            f"Đã nhập {result.imported_count} điểm.\n"
+            f"Phát hiện {imported_support_case_count(result)} ca cần bổ trợ."
+        )
+        self.context_status_label.setText(message.replace("\n", " "))
+        QMessageBox.information(self, "Nhập điểm thành công", message)
+        self.scores_saved.emit(result.imported_count)
+        return refreshed
+
+    def _show_import_error(self, message: str) -> None:
+        self.context_status_label.setText(message)
+        QMessageBox.warning(self, "Nhập điểm Excel", message)
 
     @property
     def enrollments(self) -> tuple[EnrollmentListItem, ...]:

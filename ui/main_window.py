@@ -187,6 +187,16 @@ class MainWindow(QMainWindow):
             academic_service=self.app_context.academic_service,
             enrollment_service=self.app_context.enrollment_service,
             score_service=self.app_context.score_service,
+            score_import_parser=self.app_context.score_import_parser,
+            score_import_template_service=(
+                self.app_context.score_import_template_service
+            ),
+            score_import_preview_service=(
+                self.app_context.score_import_preview_service
+            ),
+            score_import_commit_service=(
+                self.app_context.score_import_commit_service
+            ),
             parent=self.page_stack,
         )
         self.pages["scores"] = scores_page
