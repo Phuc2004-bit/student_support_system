@@ -250,12 +250,17 @@ def test_packaged_exe_functional_smoke_uses_only_test_database_and_cleans_up(
     assert payload["db_name"] == "student_support_db_test"
     assert payload["residual_counts"] == [0, 0, 0, 0, 0, 0]
 
-    excluded = {"env_file", "configured_db", "db_name", "excel_files", "residual_counts"}
+    excluded = {
+        "env_file", "executable", "working_directory", "runtime_paths",
+        "fixture_prefix", "configured_db", "db_name", "excel_files",
+        "residual_counts",
+    }
     boolean_checks = {
         key: value for key, value in payload.items() if key not in excluded
     }
     assert boolean_checks
     assert all(value is True for value in boolean_checks.values()), boolean_checks
+    assert payload["fixture_prefix"] == "T153"
 
     excel_files = [Path(item) for item in payload["excel_files"]]
     assert len(excel_files) == 5

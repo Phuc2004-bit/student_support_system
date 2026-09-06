@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 import json
 import logging
+import os
 from pathlib import Path
 import sys
 
@@ -26,14 +27,21 @@ from ui.main_window import MainWindow
 
 
 logger = logging.getLogger(__name__)
-PREFIX = "T153"
-YEAR_NAME = "T153_2627"
-CLASS_NAME = "T153_7A"
-SUBJECT_CODE = "T153_M1"
-SUBJECT_NAME = "T153 Môn đóng gói"
-ADMIN_USERNAME = "t153_admin"
-OLD_PASSWORD = "T153OldPassword!"
-NEW_PASSWORD = "T153NewPassword!"
+PREFIX = os.getenv("PACKAGED_SMOKE_PREFIX", "T153").strip().upper()
+if PREFIX not in {"T153", "T154"}:
+    raise RuntimeError("Unsupported packaged smoke fixture prefix.")
+YEAR_NAME = f"{PREFIX}_2627"
+CLASS_NAME = f"{PREFIX}_7A"
+SUBJECT_CODE = f"{PREFIX}_M1"
+SUBJECT_NAME = f"{PREFIX} Môn đóng gói"
+ADMIN_USERNAME = f"{PREFIX.lower()}_admin"
+OLD_PASSWORD = f"{PREFIX}OldPassword!"
+NEW_PASSWORD = f"{PREFIX}NewPassword!"
+MANUAL_ASSESSMENT_NAME = f"{PREFIX} Manual"
+IMPORT_ASSESSMENT_NAME = f"{PREFIX} Import"
+STUDENT_CODE_A = f"{PREFIX}01"
+STUDENT_CODE_B = f"{PREFIX}02"
+FORMULA_NAME = f"={PREFIX} Formula"
 THRESHOLD = Decimal("6.25")
 
 
@@ -144,6 +152,10 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
     result: dict[str, object] = {}
     result["frozen"] = bool(getattr(sys, "frozen", False))
     result["env_file"] = str(environment_file_path())
+    result["executable"] = str(Path(sys.executable).resolve())
+    result["working_directory"] = str(Path.cwd().resolve())
+    result["runtime_paths"] = tuple(sys.path)
+    result["fixture_prefix"] = PREFIX
     result["db_name"] = _assert_test_database(context)
     result["configured_db"] = db_settings.DATABASE
     result["pyside6_runtime"] = app is not None
@@ -165,15 +177,15 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
     class_id = context.academic_service.create_class(CLASS_NAME, grade_id, year_id)
     subject_id = context.academic_service.create_subject(SUBJECT_CODE, SUBJECT_NAME)
     manual_assessment = context.academic_service.create_assessment(
-        subject_id, year_id, "T153 Manual", 1, "TEST", date(2026, 10, 1)
+        subject_id, year_id, MANUAL_ASSESSMENT_NAME, 1, "TEST", date(2026, 10, 1)
     )
     import_assessment = context.academic_service.create_assessment(
-        subject_id, year_id, "T153 Import", 1, "TEST", date(2026, 10, 2)
+        subject_id, year_id, IMPORT_ASSESSMENT_NAME, 1, "TEST", date(2026, 10, 2)
     )
     context.academic_service.create_support_rule(subject_id, year_id, THRESHOLD)
 
     admin_user = context.user_service.create_user(
-        ADMIN_USERNAME, OLD_PASSWORD, "T153 Admin", UserRole.ADMIN
+        ADMIN_USERNAME, OLD_PASSWORD, f"{PREFIX} Admin", UserRole.ADMIN
     )
     try:
         context.auth_service.login(ADMIN_USERNAME, "wrong-password")
@@ -186,10 +198,10 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
     context.set_session(admin_session)
 
     student_a = context.student_service.create_student(
-        StudentCreateData("T15301", "=T153 Formula", date(2014, 1, 2), "Nữ")
+        StudentCreateData(STUDENT_CODE_A, FORMULA_NAME, date(2014, 1, 2), "Nữ")
     )
     student_b = context.student_service.create_student(
-        StudentCreateData("T15302", "T153 Student", date(2014, 2, 3), "Nam")
+        StudentCreateData(STUDENT_CODE_B, f"{PREFIX} Student", date(2014, 2, 3), "Nam")
     )
     enrollment_a = context.enrollment_service.enroll_student(
         student_a.student_id, class_id, date(2026, 9, 1)
@@ -368,9 +380,9 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
         subject_id,
         SUBJECT_NAME,
         import_assessment.assessment_id,
-        "T153 Import",
+        IMPORT_ASSESSMENT_NAME,
     )
-    template_path = output_dir / "T153-template.xlsx"
+    template_path = output_dir / f"{PREFIX}-template.xlsx"
     context.score_import_template_service.create_template(
         import_context,
         tuple(ScoreImportTemplateStudent(item.student_id, item.full_name) for item in roster),
@@ -395,10 +407,10 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
     )
     result["report_snapshot"] = report.summary.total_cases == 2
 
-    student_path = output_dir / "T153-students.xlsx"
-    score_path = output_dir / "T153-scores.xlsx"
-    support_path = output_dir / "T153-support.xlsx"
-    report_path = output_dir / "T153-report.xlsx"
+    student_path = output_dir / f"{PREFIX}-students.xlsx"
+    score_path = output_dir / f"{PREFIX}-scores.xlsx"
+    support_path = output_dir / f"{PREFIX}-support.xlsx"
+    report_path = output_dir / f"{PREFIX}-report.xlsx"
     context.student_export_service.export_xlsx(
         StudentExportContext(
             StudentFilter(
@@ -419,7 +431,7 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
             subject_id,
             SUBJECT_NAME,
             manual_assessment.assessment_id,
-            "T153 Manual",
+            MANUAL_ASSESSMENT_NAME,
         ),
         score_path,
     )
@@ -443,7 +455,7 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
         formula_cells = [sheet.cell(row, 3) for row in range(8, sheet.max_row + 1)]
         result["student_export"] = len(formula_cells) == 2
         result["formula_safety"] = any(
-            cell.value == "=T153 Formula" and cell.data_type == "s"
+            cell.value == FORMULA_NAME and cell.data_type == "s"
             for cell in formula_cells
         )
     finally:
@@ -489,11 +501,15 @@ def run_packaged_runtime_smoke(app, context, result_path: str) -> int:
         guarded = True
         payload = _run_checks(app, context, output.parent)
         if not all(value is True for key, value in payload.items() if key not in {
-            "env_file", "db_name", "configured_db", "excel_files"
+            "env_file", "executable", "working_directory", "runtime_paths",
+            "fixture_prefix", "db_name", "configured_db", "excel_files"
         }):
             raise AssertionError("One or more packaged smoke checks failed.")
         exit_code = 0
         logger.info("Packaged functional smoke completed")
+    except RuntimeError as exc:
+        logger.error("Packaged functional smoke aborted safely: %s", type(exc).__name__)
+        payload["error_type"] = type(exc).__name__
     except Exception as exc:
         logger.exception("Packaged functional smoke failed")
         payload["error_type"] = type(exc).__name__
