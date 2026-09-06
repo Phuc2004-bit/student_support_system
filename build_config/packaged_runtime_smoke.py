@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from secrets import token_urlsafe
 import sys
 
 from openpyxl import load_workbook
@@ -28,15 +29,15 @@ from ui.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 PREFIX = os.getenv("PACKAGED_SMOKE_PREFIX", "T153").strip().upper()
-if PREFIX not in {"T153", "T154"}:
+if PREFIX not in {"T153", "T154", "T155"}:
     raise RuntimeError("Unsupported packaged smoke fixture prefix.")
 YEAR_NAME = f"{PREFIX}_2627"
 CLASS_NAME = f"{PREFIX}_7A"
 SUBJECT_CODE = f"{PREFIX}_M1"
 SUBJECT_NAME = f"{PREFIX} Môn đóng gói"
 ADMIN_USERNAME = f"{PREFIX.lower()}_admin"
-OLD_PASSWORD = f"{PREFIX}OldPassword!"
-NEW_PASSWORD = f"{PREFIX}NewPassword!"
+OLD_PASSWORD = f"Aa1!{token_urlsafe(18)}"
+NEW_PASSWORD = f"Bb2!{token_urlsafe(18)}"
 MANUAL_ASSESSMENT_NAME = f"{PREFIX} Manual"
 IMPORT_ASSESSMENT_NAME = f"{PREFIX} Import"
 STUDENT_CODE_A = f"{PREFIX}01"

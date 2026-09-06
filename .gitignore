@@ -43,6 +43,7 @@ htmlcov/
 # ==============================
 build/
 dist/
+release/
 # PyInstaller .spec files are source-controlled build configuration.
 
 # ==============================

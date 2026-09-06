@@ -114,6 +114,9 @@ The warning file contains platform-conditional modules (primarily POSIX imports
 on Windows) and optional integrations such as lxml/defusedxml, IPython, pandas,
 GI, and alternate Qt bindings. The bcrypt hook also probes `_cffi_backend`, but
 bcrypt 5.0.0 ships and loads `_bcrypt.pyd`; the packaged startup succeeded.
-These warnings do not justify adding speculative modules. A clean-machine smoke
-test and functional login/chart/Excel verification remain required before final
-distribution.
+These warnings do not justify adding speculative modules. Steps 15.3 and 15.4
+subsequently verified functional login, navigation, charts, bcrypt, SQL Server,
+and Excel flows from the packaged runtime, including an isolated copy with no
+source, virtual-environment, or working-directory dependency. Validation was
+performed on the development Windows machine; a separate clean physical Windows
+machine or VM remains recommended before broad deployment.
