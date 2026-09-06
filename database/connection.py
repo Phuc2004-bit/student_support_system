@@ -5,6 +5,7 @@ from typing import Generator
 import pyodbc
 
 from config.database import db_settings
+from exceptions import DatabaseError
 
 
 logger = logging.getLogger(__name__)
@@ -25,11 +26,17 @@ class DatabaseManager:
         """
         logger.debug("Opening database connection")
 
-        return pyodbc.connect(
-            self.connection_string,
-            autocommit=False,
-            timeout=5,
-        )
+        try:
+            return pyodbc.connect(
+                self.connection_string,
+                autocommit=False,
+                timeout=5,
+            )
+        except pyodbc.Error as exc:
+            raise DatabaseError(
+                "Không thể kết nối cơ sở dữ liệu. Vui lòng kiểm tra SQL Server, "
+                "tên database và ODBC Driver 18 for SQL Server."
+            ) from exc
 
     @contextmanager
     def transaction(

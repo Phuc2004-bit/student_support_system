@@ -1,12 +1,13 @@
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 
+from config.paths import application_dir, environment_file_path, user_data_dir
 
-BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv(BASE_DIR / ".env")
+BASE_DIR = application_dir()
+
+load_dotenv(environment_file_path())
 
 
 class Settings:
@@ -30,7 +31,7 @@ class Settings:
         "INFO",
     ).upper()
 
-    LOG_DIR = BASE_DIR / "logs"
+    LOG_DIR = user_data_dir() / "logs"
 
 
 settings = Settings()

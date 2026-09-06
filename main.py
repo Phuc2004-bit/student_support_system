@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import sys
 from typing import Callable
+import logging
 
 from PySide6.QtCore import QEventLoop
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QMessageBox,
 )
 
 from app_context import AppContext
 from bootstrap import build_app_context
+from config.logging_config import setup_logging
 from ui.dialogs.login_dialog import LoginDialog
 from ui.main_window import MainWindow
 
@@ -117,5 +120,27 @@ def main() -> int:
     )
 
 
+def run() -> int:
+    """Configure runtime diagnostics and normalize fatal startup failures."""
+
+    try:
+        setup_logging()
+        return main()
+    except Exception:
+        logging.getLogger(__name__).exception("Fatal application startup error")
+        try:
+            app = QApplication.instance() or QApplication(sys.argv)
+            QMessageBox.critical(
+                None,
+                "Không thể khởi động ứng dụng",
+                "Ứng dụng không thể khởi động. Vui lòng kiểm tra cấu hình "
+                "SQL Server/ODBC và file nhật ký ứng dụng.",
+            )
+            app.processEvents()
+        except Exception:
+            pass
+        return 1
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(run())
