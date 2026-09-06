@@ -58,6 +58,28 @@ Exclude `tests/`, `.git/`, `.venv/`, `.pytest_cache/`, `__pycache__/`, `logs/`,
 coverage output, test database scripts and temporary Excel files. Do not include
 real credentials or test accounts.
 
+## Reproducible ONEDIR build
+
+Build prerequisites are Python 3.12, the project `.venv`, runtime dependencies,
+and PyInstaller 6.22.2 from `requirements-dev.txt`. From PowerShell at the project
+root, run:
+
+```powershell
+.\scripts\build_windows.ps1
+```
+
+The script validates all cleanup targets, removes only the project `build/` and
+`dist/` directories, invokes `StudentSupportSystem.spec`, verifies the executable
+and `qwindows.dll`, then copies `.env.example` and `HUONG_DAN.txt` beside the
+executable. It does not copy the real `.env`.
+
+The spec uses the normal ONEDIR `Analysis` → `PYZ` → windowed `EXE` → `COLLECT`
+structure. It relies on official PyInstaller hooks and the application's explicit
+imports for PySide6, QtAgg/matplotlib, pyodbc, bcrypt, openpyxl and dotenv. No
+project data files or speculative hidden imports/binaries are added. Windows
+version metadata comes from `build_config/windows_version_info.txt`; the icon is
+left unset until an official `.ico` is available.
+
 ## Validation checklist for later steps
 
 1. Launch from source.
@@ -74,3 +96,24 @@ real credentials or test accounts.
 
 Step 15.1 does not create a PyInstaller spec, executable, installer, or final
 release directory.
+
+## Step 15.2 technical smoke result
+
+PyInstaller 6.22.2 completed one technical ONEDIR build on Windows 11 with
+Python 3.12.9. The output uses PyInstaller's `_internal` contents directory and
+contains the windowed executable, `qwindows.dll`, the pyodbc and bcrypt native
+extensions, matplotlib runtime data, `.env.example`, and `HUONG_DAN.txt`.
+
+The packaged executable remained running through a seven-second startup smoke,
+created `%LOCALAPPDATA%/StudentSupportSystem/logs/app.log`, and was then stopped
+without login or database access. No hidden imports, custom datas, or custom
+binaries were required in the spec. Official hooks selected PySide6 and the
+single used matplotlib backend, QtAgg.
+
+The warning file contains platform-conditional modules (primarily POSIX imports
+on Windows) and optional integrations such as lxml/defusedxml, IPython, pandas,
+GI, and alternate Qt bindings. The bcrypt hook also probes `_cffi_backend`, but
+bcrypt 5.0.0 ships and loads `_bcrypt.pyd`; the packaged startup succeeded.
+These warnings do not justify adding speculative modules. A clean-machine smoke
+test and functional login/chart/Excel verification remain required before final
+distribution.

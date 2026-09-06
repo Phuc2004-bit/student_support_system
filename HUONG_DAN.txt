@@ -1,0 +1,32 @@
+STUDENT SUPPORT SYSTEM V1.0
+===========================
+
+YÊU CẦU HỆ THỐNG
+
+- Windows 64-bit.
+- Microsoft SQL Server hoặc SQL Server Express.
+- Database production student_support_db đã được tạo đúng schema.
+- Microsoft ODBC Driver 18 for SQL Server.
+- Windows user đang đăng nhập có quyền truy cập database.
+
+CẤU HÌNH
+
+1. Sao chép file .env.example thành .env trong cùng thư mục với
+   StudentSupportSystem.exe.
+2. Chỉnh DB_SERVER và DB_NAME theo môi trường triển khai.
+3. Giữ Windows Authentication bằng DB_TRUSTED_CONNECTION=yes.
+4. Không ghi mật khẩu hoặc thông tin bí mật vào file được chia sẻ.
+
+CHẠY ỨNG DỤNG
+
+Chạy StudentSupportSystem.exe và đăng nhập bằng tài khoản được quản trị viên
+cấp. SQL Server và ODBC Driver là phần mềm bắt buộc cài riêng, không nằm trong
+ứng dụng.
+
+NHẬT KÝ
+
+File nhật ký nằm tại:
+%LOCALAPPDATA%\StudentSupportSystem\logs\app.log
+
+Khi không thể kết nối, kiểm tra SQL Server service, instance, database, quyền
+Windows user và ODBC Driver 18 trước khi liên hệ quản trị hệ thống.
