@@ -5,7 +5,7 @@ from typing import Generator
 import pyodbc
 
 from config.database import db_settings
-from exceptions import DatabaseError
+from exceptions import AppError, DatabaseError
 
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,15 @@ class DatabaseManager:
             logger.debug(
                 "Database transaction committed"
             )
+
+        except AppError:
+            connection.rollback()
+
+            logger.debug(
+                "Database transaction rolled back for an expected application error"
+            )
+
+            raise
 
         except Exception:
             connection.rollback()

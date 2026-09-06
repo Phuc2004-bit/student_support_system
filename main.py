@@ -18,6 +18,18 @@ from ui.dialogs.login_dialog import LoginDialog
 from ui.main_window import MainWindow
 
 
+logger = logging.getLogger(__name__)
+PACKAGED_SMOKE_ARGUMENT = "--packaged-functional-smoke="
+
+
+def packaged_smoke_result_path(arguments: list[str]) -> str | None:
+    for argument in arguments:
+        if argument.startswith(PACKAGED_SMOKE_ARGUMENT):
+            value = argument[len(PACKAGED_SMOKE_ARGUMENT):].strip()
+            return value or None
+    return None
+
+
 def run_login(
     context: AppContext,
     dialog_factory: Callable[..., QDialog] = LoginDialog,
@@ -115,6 +127,12 @@ def main() -> int:
         context,
     )
 
+    smoke_result_path = packaged_smoke_result_path(sys.argv[1:])
+    if smoke_result_path is not None:
+        from build_config.packaged_runtime_smoke import run_packaged_runtime_smoke
+
+        return run_packaged_runtime_smoke(app, context, smoke_result_path)
+
     return run_application_flow(
         context
     )
@@ -125,9 +143,10 @@ def run() -> int:
 
     try:
         setup_logging()
+        logger.info("Application starting")
         return main()
     except Exception:
-        logging.getLogger(__name__).exception("Fatal application startup error")
+        logger.exception("Fatal application startup error")
         try:
             app = QApplication.instance() or QApplication(sys.argv)
             QMessageBox.critical(
