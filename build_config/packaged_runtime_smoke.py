@@ -232,7 +232,7 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
     try:
         login_dialog = LoginDialog(context.auth_service)
         result["v11_login_theme"] = (
-            settings.APP_VERSION == "1.1.0"
+            settings.APP_VERSION == "1.2.0"
             and APP_BACKGROUND.upper() in login_dialog.styleSheet().upper()
             and "HỆ THỐNG" in login_dialog.title_label.text()
         )

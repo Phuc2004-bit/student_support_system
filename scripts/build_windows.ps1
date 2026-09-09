@@ -60,6 +60,8 @@ try {
 
     Copy-Item -LiteralPath (Join-Path $ProjectRoot ".env.example") -Destination $ReleaseDir
     Copy-Item -LiteralPath (Join-Path $ProjectRoot "HUONG_DAN.txt") -Destination $ReleaseDir
+    Copy-Item -LiteralPath (Join-Path $ProjectRoot "RELEASE_NOTES_V1.2.0.md") -Destination $ReleaseDir
+    Copy-Item -LiteralPath (Join-Path $ProjectRoot "RELEASE_CHECKLIST_V1.2.0.md") -Destination $ReleaseDir
 
     $QtPlatformPlugin = Get-ChildItem -LiteralPath $ReleaseDir -Recurse -Filter "qwindows.dll" |
         Select-Object -First 1

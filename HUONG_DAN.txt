@@ -1,4 +1,4 @@
-STUDENT SUPPORT SYSTEM V1.1
+STUDENT SUPPORT SYSTEM V1.2
 ===========================
 
 YÊU CẦU HỆ THỐNG
@@ -35,6 +35,19 @@ Script hiển thị rõ database đang dùng, yêu cầu nhập mật khẩu ẩ
 khoản khi database chưa có ADMIN đang hoạt động. Không chia sẻ source checkout,
 .env hoặc thông tin đăng nhập với người dùng cuối. Ứng dụng không có đăng ký công
 khai; sau bootstrap, ADMIN quản lý các tài khoản tiếp theo trong ứng dụng.
+
+RESET MẬT KHẨU ADMIN
+
+Khi một ADMIN hiện có cần đặt lại mật khẩu, người triển khai phải dùng cùng source
+checkout được bảo vệ và file .env đã kiểm tra, sau đó chạy:
+
+python scripts/reset_admin_password.py
+
+Script hiển thị database đang dùng, chỉ chấp nhận tài khoản có role ADMIN, nhập mật
+khẩu bằng chế độ ẩn và xác minh đăng nhập sau khi cập nhật. Script không có trong
+bản cài nhị phân và không phải công cụ tự phục vụ cho người dùng cuối. Không thể
+đọc lại mật khẩu gốc từ bcrypt hash; chỉ có thể xác minh hoặc đặt mật khẩu mới.
+Không ghi mật khẩu, password hash hoặc credential vào tài liệu và nhật ký.
 
 NHẬT KÝ
 

@@ -247,7 +247,7 @@ def test_packaged_exe_functional_smoke_uses_only_test_database_and_cleans_up(
     assert payload["frozen"] is True
     assert Path(str(payload["env_file"])).resolve() == DIST_ENV.resolve()
     assert payload["configured_db"] == "student_support_db_test"
-    assert payload["app_version"] == "1.1.0"
+    assert payload["app_version"] == "1.2.0"
     assert payload["db_name"] == "student_support_db_test"
     assert payload["residual_counts"] == [0, 0, 0, 0, 0, 0]
 
