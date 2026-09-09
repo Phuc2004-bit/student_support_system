@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from models.dto import UserSession
 from models.enums import UserRole
+from ui.branding import set_brand_icon
 
 
 @dataclass(frozen=True)
@@ -156,6 +157,7 @@ class Sidebar(QFrame):
         self.brand_mark_label = QLabel("SS", brand)
         self.brand_mark_label.setObjectName("sidebarBrandMark")
         self.brand_mark_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        set_brand_icon(self.brand_mark_label, 38)
 
         text_layout = QVBoxLayout()
         text_layout.setContentsMargins(0, 0, 0, 0)

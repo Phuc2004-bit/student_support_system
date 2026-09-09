@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from models.dto import UserSession
+from ui.branding import set_brand_icon
 from ui.theme import login_dialog_stylesheet
 
 
@@ -53,6 +54,7 @@ class LoginDialog(QDialog):
         self.brand_mark_label = QLabel("HT")
         self.brand_mark_label.setObjectName("loginBrandMark")
         self.brand_mark_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        set_brand_icon(self.brand_mark_label, 44)
 
         self.title_label = QLabel("HỆ THỐNG HỖ TRỢ HỌC TẬP")
         self.title_label.setObjectName("loginTitleLabel")

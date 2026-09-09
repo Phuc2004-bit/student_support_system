@@ -76,7 +76,7 @@ def test_release_version_documentation_and_build_inputs_are_consistent():
     metadata = (ROOT / "build_config" / "windows_version_info.txt").read_text(
         encoding="utf-8"
     )
-    assert "1.1.0" in metadata
+    assert "1.2.0" in metadata
     assert "Student Support System" in metadata
     assert "StringStruct('CompanyName', '')" in metadata
 
@@ -113,7 +113,7 @@ def test_final_dist_packaged_smoke_uses_t155_and_leaves_release_clean(tmp_path):
     assert payload["fixture_prefix"] == PREFIX
     assert payload["db_name"] == "student_support_db_test"
     assert payload["configured_db"] == "student_support_db_test"
-    assert payload["app_version"] == "1.1.0"
+    assert payload["app_version"] == "1.2.0"
     assert payload["residual_counts"] == [0, 0, 0, 0, 0, 0]
     assert all(Path(path).is_file() for path in payload["excel_files"])
     assert not dist_env.exists()

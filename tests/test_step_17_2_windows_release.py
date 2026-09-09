@@ -19,10 +19,15 @@ def read(relative_path: str) -> str:
 
 
 def _test_environment_text() -> str:
-    return "\n".join(
-        "DB_NAME=student_support_db_test" if line.startswith("DB_NAME=") else line
-        for line in read(".env.example").splitlines()
-    ) + "\n"
+    lines = []
+    for line in read(".env.example").splitlines():
+        if line.startswith("DB_NAME="):
+            lines.append("DB_NAME=student_support_db_test")
+        elif line.startswith("APP_VERSION="):
+            lines.append(f"APP_VERSION={VERSION}")
+        else:
+            lines.append(line)
+    return "\n".join(lines) + "\n"
 
 
 def _sanitized_environment() -> dict[str, str]:
@@ -47,14 +52,14 @@ def _sanitized_environment() -> dict[str, str]:
     return environment
 
 
-def test_v11_version_inputs_are_consistent():
-    assert "APP_VERSION=1.1.0" in read(".env.example")
-    assert '"1.1.0"' in read("config/settings.py")
+def test_current_version_inputs_are_consistent_after_v11_release():
+    assert "APP_VERSION=1.2.0" in read(".env.example")
+    assert '"1.2.0"' in read("config/settings.py")
     metadata = read("build_config/windows_version_info.txt")
-    assert "filevers=(1, 1, 0, 0)" in metadata
-    assert "prodvers=(1, 1, 0, 0)" in metadata
-    assert "StringStruct('FileVersion', '1.1.0')" in metadata
-    assert "StringStruct('ProductVersion', '1.1.0')" in metadata
+    assert "filevers=(1, 2, 0, 0)" in metadata
+    assert "prodvers=(1, 2, 0, 0)" in metadata
+    assert "StringStruct('FileVersion', '1.2.0')" in metadata
+    assert "StringStruct('ProductVersion', '1.2.0')" in metadata
     assert "StringStruct('ProductName', 'Student Support System')" in metadata
     assert "StringStruct('OriginalFilename', 'StudentSupportSystem.exe')" in metadata
 
@@ -67,7 +72,8 @@ def test_v11_spec_remains_windowed_onedir_without_speculative_collection():
     assert 'name="StudentSupportSystem"' in spec
     assert "hiddenimports=[]" in spec
     assert "binaries=[]" in spec
-    assert "datas=[]" in spec
+    assert '("assets/app_icon.png", "assets")' in spec
+    assert '("assets/app_icon.ico", "assets")' in spec
     assert "onefile" not in spec.casefold()
 
 
@@ -91,27 +97,27 @@ def test_v11_release_notes_checklist_and_deployment_guide_are_honest():
         assert unsupported not in combined
 
 
-def test_v11_release_scripts_target_only_current_onedir_artifacts():
+def test_current_release_scripts_target_only_current_onedir_artifacts():
     build = read("scripts/build_windows.ps1")
     finalize = read("scripts/finalize_release.ps1")
     assert "StudentSupportSystem.spec" in build
     assert "StudentSupportSystem.exe" in build
     assert "Remove-Item -LiteralPath $Target -Recurse -Force" in build
-    assert "StudentSupportSystem-1.1.0-win64.zip" in finalize
-    assert "RELEASE_NOTES_V1.1.0.md" in finalize
-    assert "RELEASE_CHECKLIST_V1.1.0.md" in finalize
+    assert "StudentSupportSystem-1.2.0-win64.zip" in finalize
+    assert "RELEASE_NOTES_V1.2.0.md" in finalize
+    assert "RELEASE_CHECKLIST_V1.2.0.md" in finalize
     assert "StudentSupportSystem-1.0.0-win64.zip" not in finalize
 
 
-def test_v11_final_package_contains_runtime_docs_and_no_forbidden_artifacts():
+def test_current_package_contains_runtime_docs_and_no_forbidden_artifacts():
     package = ROOT / "dist" / PACKAGE_NAME
     required = {
         "StudentSupportSystem.exe",
         "_internal",
         ".env.example",
         "HUONG_DAN.txt",
-        "RELEASE_NOTES_V1.1.0.md",
-        "RELEASE_CHECKLIST_V1.1.0.md",
+        "RELEASE_NOTES_V1.2.0.md",
+        "RELEASE_CHECKLIST_V1.2.0.md",
     }
     assert required.issubset({path.name for path in package.iterdir()})
     paths = tuple(path.relative_to(package) for path in package.rglob("*"))

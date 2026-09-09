@@ -1,8 +1,8 @@
-# Windows packaging audit (Step 15.1)
+# Windows packaging and installer policy
 
 ## Release recommendation
 
-Use a PyInstaller **onedir** build for V1.1. PySide6, matplotlib, pyodbc and
+Use a PyInstaller **onedir** build for V1.2. PySide6, matplotlib, pyodbc and
 bcrypt include native components; onedir gives predictable startup, makes Qt
 plugins and DLLs easier to inspect, and avoids onefile temporary extraction.
 
@@ -16,9 +16,9 @@ dist/
     HUONG_DAN.txt
 ```
 
-Product name: `Student Support System`; version: `1.1.0`; executable:
-`StudentSupportSystem.exe`. The project currently has no `.ico` file, so a real
-Windows application icon remains an input for a later packaging step.
+Product name: `Student Support System`; version: `1.2.0`; executable:
+`StudentSupportSystem.exe`. The official icon is stored in `assets/app_icon.ico`
+and is applied to the executable and installer.
 
 ## Runtime configuration and writable files
 
@@ -31,10 +31,9 @@ The production default database is `student_support_db`, never the test database
 Logs are written to `%LOCALAPPDATA%/StudentSupportSystem/logs/app.log` with
 rotation. Password-like fields are redacted by the logging formatter.
 
-There are currently no icons, images, stylesheets, fonts or workbook templates to
-bundle. Excel templates are generated programmatically and import/export paths
-come from the file dialog. `config.paths.resource_path()` is available if a
-read-only resource is added later.
+The official PNG/ICO branding assets are bundled through the PyInstaller spec and
+resolved through `config.paths.resource_path()`. Excel templates are generated
+programmatically and import/export paths come from the file dialog.
 
 ## External prerequisites
 
@@ -77,8 +76,43 @@ The spec uses the normal ONEDIR `Analysis` → `PYZ` → windowed `EXE` → `COL
 structure. It relies on official PyInstaller hooks and the application's explicit
 imports for PySide6, QtAgg/matplotlib, pyodbc, bcrypt, openpyxl and dotenv. No
 project data files or speculative hidden imports/binaries are added. Windows
-version metadata comes from `build_config/windows_version_info.txt`; the icon is
-left unset until an official `.ico` is available.
+version metadata comes from `build_config/windows_version_info.txt`.
+
+## Inno Setup installer
+
+After building ONEDIR, run `scripts/build_installer.ps1`. It validates the staged
+package and invokes an existing Inno Setup 6 compiler; it never downloads the
+compiler or prerequisites. The installer is per-user under
+`%LOCALAPPDATA%\Programs\StudentSupportSystem`, creates a Start Menu shortcut,
+offers an unchecked Desktop shortcut, and preserves external user logs on
+uninstall. SQL Server, ODBC Driver 18, database deployment, `.env`, and initial
+ADMIN bootstrap remain explicit deployment responsibilities. The installer is
+unsigned until a real code-signing certificate is available.
+
+The Inno `AppId` is the stable product-line identity. Keep it unchanged for
+V1.3 and later in-place upgrades; advance `AppVersion` and output filenames
+instead. Changing `AppId` would create a separate installed product and must be
+reserved for an intentionally incompatible product line.
+
+## Deployment-only ADMIN utilities
+
+The binary installer contains neither the Python source nor public registration.
+An authorized deployer uses `scripts/create_initial_admin.py` from a protected
+source checkout to bootstrap the first active ADMIN. If an existing ADMIN needs
+a new password, the deployer uses `scripts/reset_admin_password.py` from that
+same protected checkout after verifying its `.env` target.
+
+Both workflows use the existing services, bcrypt policy, and service-owned
+transactions. Passwords are entered without terminal echo and cannot be
+recovered from their bcrypt hashes. These scripts are operational tools for the
+deployer, not instructions for an end user of the installed binary.
+
+## Signing and SmartScreen
+
+The V1.2 installer is unsigned. Windows SmartScreen may therefore display an
+unrecognized-app warning. Do not bypass SmartScreen, use a fabricated
+certificate, or describe the package as coming from a Trusted Publisher. A
+future signed release requires an authentic code-signing identity.
 
 ## Validation checklist for later steps
 
