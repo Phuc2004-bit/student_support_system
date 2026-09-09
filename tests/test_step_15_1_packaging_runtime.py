@@ -55,7 +55,9 @@ def test_production_entry_point_is_importable_and_uses_existing_bootstrap_flow()
 def test_development_config_and_production_database_default_are_safe():
     assert application_dir() == PROJECT_ROOT
     assert environment_file_path() == PROJECT_ROOT / ".env"
-    assert settings.APP_VERSION == "1.0.0"
+    # The ignored developer .env may override the release default. Release
+    # version consistency is validated from committed inputs in Step 17.2.
+    assert settings.APP_VERSION == os.getenv("APP_VERSION", "1.1.0")
     assert db_settings.DATABASE == "student_support_db"
     assert "DATABASE=student_support_db_test;" not in db_settings.connection_string()
 

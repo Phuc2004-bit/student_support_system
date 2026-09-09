@@ -1,4 +1,4 @@
-STUDENT SUPPORT SYSTEM V1.0
+STUDENT SUPPORT SYSTEM V1.1
 ===========================
 
 YÊU CẦU HỆ THỐNG
@@ -22,6 +22,19 @@ CHẠY ỨNG DỤNG
 Chạy StudentSupportSystem.exe và đăng nhập bằng tài khoản được quản trị viên
 cấp. SQL Server và ODBC Driver là phần mềm bắt buộc cài riêng, không nằm trong
 ứng dụng.
+
+TẠO TÀI KHOẢN ADMIN ĐẦU TIÊN
+
+Bản phát hành nhị phân không kèm Python hoặc source nên người dùng cuối không thể
+chạy script bootstrap từ thư mục ứng dụng. Trong bước triển khai ban đầu, người
+triển khai phải cấu hình .env trong một source checkout được bảo vệ rồi chạy:
+
+python scripts/create_initial_admin.py
+
+Script hiển thị rõ database đang dùng, yêu cầu nhập mật khẩu ẩn và chỉ tạo tài
+khoản khi database chưa có ADMIN đang hoạt động. Không chia sẻ source checkout,
+.env hoặc thông tin đăng nhập với người dùng cuối. Ứng dụng không có đăng ký công
+khai; sau bootstrap, ADMIN quản lý các tài khoản tiếp theo trong ứng dụng.
 
 NHẬT KÝ
 

@@ -3,7 +3,9 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QVBoxLayout,
     QWidget,
@@ -11,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from models.dto import UserListItem
 from models.enums import UserRole
+from ui.theme import dialog_stylesheet
 
 
 class UserDialog(QDialog):
@@ -21,7 +24,19 @@ class UserDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.user = user
+        self.setObjectName("userDialog")
         self.setWindowTitle("Sửa người dùng" if user else "Thêm người dùng")
+        self.resize(540, 560)
+        self.title_label = QLabel(
+            "Cập nhật người dùng" if user else "Thêm người dùng mới", self
+        )
+        self.title_label.setProperty("dialogTitle", True)
+        self.subtitle_label = QLabel(
+            "Chỉ quản lý thông tin tài khoản, vai trò và trạng thái được hệ thống cho phép.",
+            self,
+        )
+        self.subtitle_label.setProperty("dialogSubtitle", True)
+        self.subtitle_label.setWordWrap(True)
         self.username_input = QLineEdit(self)
         self.username_input.setMaxLength(50)
         self.password_input = QLineEdit(self)
@@ -39,7 +54,12 @@ class UserDialog(QDialog):
         self.active_checkbox = QCheckBox("Đang hoạt động", self)
         self.active_checkbox.setChecked(True)
 
-        form = QFormLayout()
+        self.form_card = QFrame(self)
+        self.form_card.setProperty("dialogCard", True)
+        form = QFormLayout(self.form_card)
+        form.setContentsMargins(20, 18, 20, 18)
+        form.setHorizontalSpacing(18)
+        form.setVerticalSpacing(12)
         form.addRow("Tên đăng nhập *", self.username_input)
         form.addRow("Mật khẩu ban đầu *", self.password_input)
         form.addRow("Họ tên *", self.full_name_input)
@@ -54,8 +74,17 @@ class UserDialog(QDialog):
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
+        self.save_button = self.button_box.button(QDialogButtonBox.StandardButton.Save)
+        self.cancel_button = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        self.save_button.setText("Lưu")
+        self.cancel_button.setText("Hủy")
+        self.save_button.setProperty("variant", "primary")
         root = QVBoxLayout(self)
-        root.addLayout(form)
+        root.setContentsMargins(28, 24, 28, 24)
+        root.setSpacing(14)
+        root.addWidget(self.title_label)
+        root.addWidget(self.subtitle_label)
+        root.addWidget(self.form_card)
         root.addWidget(self.button_box)
 
         if user is not None:
@@ -71,6 +100,7 @@ class UserDialog(QDialog):
             self.phone_input.setText(user.phone or "")
             self.active_checkbox.setChecked(user.is_active)
             self.active_checkbox.setEnabled(False)
+        self.setStyleSheet(dialog_stylesheet())
 
     def create_values(self):
         if self.user is not None:

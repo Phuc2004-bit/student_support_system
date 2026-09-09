@@ -20,6 +20,7 @@ from ui.pages.system_page import SystemPage
 from ui.widgets.page_stack import PageStack
 from ui.widgets.sidebar import Sidebar
 from ui.widgets.topbar import Topbar
+from ui.theme import main_window_stylesheet
 
 
 class MainWindow(QMainWindow):
@@ -32,9 +33,11 @@ class MainWindow(QMainWindow):
     logout_requested = Signal()
     window_closed = Signal()
 
-    DEFAULT_WIDTH = 1280
-    DEFAULT_HEIGHT = 800
-    SIDEBAR_WIDTH = 240
+    DEFAULT_WIDTH = 1366
+    DEFAULT_HEIGHT = 768
+    MINIMUM_WIDTH = 1100
+    MINIMUM_HEIGHT = 680
+    SIDEBAR_WIDTH = 236
     TOPBAR_HEIGHT = Topbar.HEIGHT
 
     PAGE_TITLES = {
@@ -45,6 +48,16 @@ class MainWindow(QMainWindow):
         "reports": "Báo cáo & Thống kê",
         "catalogs": "Danh mục",
         "system": "Hệ thống",
+    }
+
+    PAGE_SUBTITLES = {
+        "dashboard": "Theo dõi tổng quan hoạt động hỗ trợ học tập",
+        "students": "Quản lý hồ sơ và quá trình xếp lớp",
+        "scores": "Quản lý điểm và đánh giá học tập",
+        "support": "Theo dõi quy trình bổ trợ học tập",
+        "reports": "Báo cáo và thống kê theo dữ liệu đã lưu",
+        "catalogs": "Quản lý danh mục dùng chung",
+        "system": "Tài khoản và cấu hình hệ thống",
     }
 
     def __init__(
@@ -76,8 +89,10 @@ class MainWindow(QMainWindow):
             self.DEFAULT_WIDTH,
             self.DEFAULT_HEIGHT,
         )
+        self.setMinimumSize(self.MINIMUM_WIDTH, self.MINIMUM_HEIGHT)
 
         self._build_ui()
+        self.setStyleSheet(main_window_stylesheet())
         self._register_pages()
         self._connect_signals()
         self._apply_navigation_permissions()
@@ -94,7 +109,7 @@ class MainWindow(QMainWindow):
             self.central_widget
         )
 
-        root_layout = QVBoxLayout(
+        root_layout = QHBoxLayout(
             self.central_widget
         )
         root_layout.setContentsMargins(
@@ -105,21 +120,22 @@ class MainWindow(QMainWindow):
         )
         root_layout.setSpacing(0)
 
-        self.topbar = Topbar(
-            self.app_context.session,
+        self.sidebar = Sidebar(
             self.central_widget,
+            session=self._session,
         )
-        root_layout.addWidget(self.topbar)
+        self.sidebar.setFixedWidth(self.SIDEBAR_WIDTH)
+        root_layout.addWidget(self.sidebar)
 
-        body_widget = QWidget(
+        self.body_widget = QWidget(
             self.central_widget
         )
-        body_widget.setObjectName(
+        self.body_widget.setObjectName(
             "bodyWidget"
         )
 
-        body_layout = QHBoxLayout(
-            body_widget
+        body_layout = QVBoxLayout(
+            self.body_widget
         )
         body_layout.setContentsMargins(
             0,
@@ -129,26 +145,19 @@ class MainWindow(QMainWindow):
         )
         body_layout.setSpacing(0)
 
-        self.sidebar = Sidebar(
-            body_widget
+        self.topbar = Topbar(
+            self.app_context.session,
+            self.body_widget,
         )
-        self.sidebar.setFixedWidth(
-            self.SIDEBAR_WIDTH
-        )
-        body_layout.addWidget(
-            self.sidebar
-        )
+        body_layout.addWidget(self.topbar)
 
         self.page_stack = PageStack(
-            body_widget
+            self.body_widget
         )
-        body_layout.addWidget(
-            self.page_stack,
-            1,
-        )
+        body_layout.addWidget(self.page_stack, 1)
 
         root_layout.addWidget(
-            body_widget,
+            self.body_widget,
             1,
         )
 
@@ -280,6 +289,9 @@ class MainWindow(QMainWindow):
         self.topbar.logout_requested.connect(
             self.request_logout
         )
+        self.sidebar.logout_requested.connect(
+            self.request_logout
+        )
 
     def _apply_navigation_permissions(self) -> None:
         permissions = self._current_navigation_permissions()
@@ -343,6 +355,10 @@ class MainWindow(QMainWindow):
 
         self.page_stack.show_page(key)
         self.sidebar.set_current_item(key)
+        self.topbar.set_page_title(
+            self.PAGE_TITLES[key],
+            self.PAGE_SUBTITLES.get(key),
+        )
 
         if key == "students":
             self._initialize_students()

@@ -1,7 +1,9 @@
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QVBoxLayout,
     QWidget,
@@ -9,6 +11,7 @@ from PySide6.QtWidgets import (
 
 from models.dto import UserListItem
 from models.enums import UserRole
+from ui.theme import dialog_stylesheet
 
 
 class ProfileDialog(QDialog):
@@ -19,7 +22,16 @@ class ProfileDialog(QDialog):
     ) -> None:
         super().__init__(parent)
         self.profile = profile
+        self.setObjectName("profileDialog")
         self.setWindowTitle("Cập nhật hồ sơ")
+        self.resize(520, 480)
+        self.title_label = QLabel("Cập nhật hồ sơ", self)
+        self.title_label.setProperty("dialogTitle", True)
+        self.subtitle_label = QLabel(
+            "Tên đăng nhập và vai trò được hệ thống quản lý và không thể chỉnh sửa.", self
+        )
+        self.subtitle_label.setProperty("dialogSubtitle", True)
+        self.subtitle_label.setWordWrap(True)
 
         self.username_input = QLineEdit(profile.username, self)
         self.username_input.setReadOnly(True)
@@ -32,7 +44,12 @@ class ProfileDialog(QDialog):
         self.phone_input = QLineEdit(profile.phone or "", self)
         self.phone_input.setMaxLength(20)
 
-        form = QFormLayout()
+        self.form_card = QFrame(self)
+        self.form_card.setProperty("dialogCard", True)
+        form = QFormLayout(self.form_card)
+        form.setContentsMargins(20, 18, 20, 18)
+        form.setHorizontalSpacing(18)
+        form.setVerticalSpacing(12)
         form.addRow("Tên đăng nhập", self.username_input)
         form.addRow("Vai trò", self.role_input)
         form.addRow("Họ tên *", self.full_name_input)
@@ -45,9 +62,19 @@ class ProfileDialog(QDialog):
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
+        self.save_button = self.button_box.button(QDialogButtonBox.StandardButton.Save)
+        self.cancel_button = self.button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        self.save_button.setText("Lưu")
+        self.cancel_button.setText("Hủy")
+        self.save_button.setProperty("variant", "primary")
         root = QVBoxLayout(self)
-        root.addLayout(form)
+        root.setContentsMargins(28, 24, 28, 24)
+        root.setSpacing(14)
+        root.addWidget(self.title_label)
+        root.addWidget(self.subtitle_label)
+        root.addWidget(self.form_card)
         root.addWidget(self.button_box)
+        self.setStyleSheet(dialog_stylesheet())
 
     def values(self) -> tuple[str, str | None, str | None]:
         return (

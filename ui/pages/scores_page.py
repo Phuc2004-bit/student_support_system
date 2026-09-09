@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
@@ -34,6 +35,12 @@ from ui.widgets.score_context_filter_widget import (
     ScoreContextSelection,
 )
 from ui.dialogs.score_import_preview_dialog import ScoreImportPreviewDialog
+from ui.theme import (
+    SIDEBAR_BACKGROUND,
+    TEXT_PRIMARY,
+    scores_page_stylesheet,
+    status_badge_colors,
+)
 
 
 def save_score_batch(
@@ -103,6 +110,7 @@ class ScoresPage(QWidget):
         self._original_score_text = ""
         self.setObjectName("scoresPage")
         self._build_ui()
+        self.setStyleSheet(scores_page_stylesheet())
         for button in (
             self.download_template_button,
             self.import_excel_button,
@@ -113,36 +121,47 @@ class ScoresPage(QWidget):
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 24)
-        root.setSpacing(16)
+        root.setSpacing(14)
 
         self.title_label = QLabel("Điểm & Đánh giá", self)
         self.subtitle_label = QLabel(
-            "Chọn đầy đủ ngữ cảnh để xem bảng điểm.",
+            "Quản lý kết quả đánh giá của học sinh",
             self,
         )
-        root.addWidget(self.title_label)
-        root.addWidget(self.subtitle_label)
+        self.title_label.setVisible(False)
+        self.subtitle_label.setVisible(False)
+
+        self.toolbar_card = QFrame(self)
+        self.toolbar_card.setObjectName("scoresToolbarCard")
+        toolbar_layout = QVBoxLayout(self.toolbar_card)
+        toolbar_layout.setContentsMargins(16, 14, 16, 14)
+        toolbar_layout.setSpacing(12)
+
+        self.context_filter = ScoreContextFilterWidget(
+            academic_service=self.academic_service,
+            parent=self.toolbar_card,
+        )
+        toolbar_layout.addWidget(self.context_filter)
 
         import_actions = QHBoxLayout()
-        import_actions.addStretch(1)
+        import_actions.setSpacing(10)
         self.export_button = QPushButton("Xuất Excel", self)
         self.export_button.setObjectName("exportScoresExcelButton")
-        import_actions.addWidget(self.export_button)
         self.download_template_button = QPushButton("Tải file mẫu", self)
         self.download_template_button.setObjectName(
             "downloadScoreImportTemplateButton"
         )
-        import_actions.addWidget(self.download_template_button)
         self.import_excel_button = QPushButton("Nhập điểm từ Excel", self)
         self.import_excel_button.setObjectName("importScoresFromExcelButton")
         import_actions.addWidget(self.import_excel_button)
-        root.addLayout(import_actions)
-
-        self.context_filter = ScoreContextFilterWidget(
-            academic_service=self.academic_service,
-            parent=self,
-        )
-        root.addWidget(self.context_filter)
+        import_actions.addWidget(self.download_template_button)
+        import_actions.addWidget(self.export_button)
+        import_actions.addStretch(1)
+        self.import_excel_button.setProperty("variant", "primary")
+        self.download_template_button.setProperty("variant", "secondary")
+        self.export_button.setProperty("variant", "secondary")
+        toolbar_layout.addLayout(import_actions)
+        root.addWidget(self.toolbar_card)
 
         self.school_year_combo = self.context_filter.school_year_combo
         self.grade_combo = self.context_filter.grade_combo
@@ -150,8 +169,38 @@ class ScoresPage(QWidget):
         self.subject_combo = self.context_filter.subject_combo
         self.assessment_combo = self.context_filter.assessment_combo
 
-        self.context_status_label = QLabel(self)
-        root.addWidget(self.context_status_label)
+        self.assessment_info_card = QFrame(self)
+        self.assessment_info_card.setObjectName("assessmentInfoCard")
+        assessment_layout = QHBoxLayout(self.assessment_info_card)
+        assessment_layout.setContentsMargins(16, 11, 16, 11)
+        assessment_layout.setSpacing(14)
+        assessment_text = QVBoxLayout()
+        assessment_text.setSpacing(3)
+        self.assessment_caption_label = QLabel(
+            "BÀI ĐÁNH GIÁ ĐANG CHỌN",
+            self.assessment_info_card,
+        )
+        self.assessment_caption_label.setObjectName("assessmentInfoCaption")
+        self.assessment_name_label = QLabel(
+            "Chưa chọn bài đánh giá",
+            self.assessment_info_card,
+        )
+        self.assessment_name_label.setObjectName("assessmentInfoName")
+        self.assessment_meta_label = QLabel("—", self.assessment_info_card)
+        self.assessment_meta_label.setObjectName("assessmentInfoMeta")
+        assessment_text.addWidget(self.assessment_caption_label)
+        assessment_text.addWidget(self.assessment_name_label)
+        assessment_text.addWidget(self.assessment_meta_label)
+        assessment_layout.addLayout(assessment_text, 1)
+        self.assessment_status_label = QLabel("Chưa chọn", self.assessment_info_card)
+        self.assessment_status_label.setObjectName("assessmentStatusBadge")
+        self.assessment_status_label.setProperty("assessmentStatus", "NONE")
+        assessment_layout.addWidget(
+            self.assessment_status_label,
+            0,
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+        )
+        root.addWidget(self.assessment_info_card)
 
         self.score_table_placeholder = QFrame(self)
         self.score_table_placeholder.setObjectName(
@@ -160,10 +209,55 @@ class ScoresPage(QWidget):
         placeholder_layout = QVBoxLayout(
             self.score_table_placeholder
         )
-        self.placeholder_label = QLabel(
-            "Bảng điểm sẽ hiển thị tại đây.",
+        placeholder_layout.setContentsMargins(16, 12, 16, 16)
+        placeholder_layout.setSpacing(10)
+
+        table_header = QHBoxLayout()
+        table_header.setSpacing(9)
+        self.score_table_caption = QLabel(
+            "Danh sách học sinh & điểm",
             self.score_table_placeholder,
         )
+        self.score_table_caption.setObjectName("scoreTableCaption")
+        table_header.addWidget(self.score_table_caption)
+        table_header.addStretch(1)
+        self.unsaved_label = QLabel(
+            "Có thay đổi chưa lưu",
+            self.score_table_placeholder,
+        )
+        self.unsaved_label.setObjectName("scoreUnsavedState")
+        self.unsaved_label.setVisible(False)
+        table_header.addWidget(self.unsaved_label)
+
+        self.edit_button = QPushButton("Sửa", self)
+        self.edit_button.setEnabled(False)
+        self.cancel_edit_button = QPushButton("Hủy sửa", self)
+        self.cancel_edit_button.setEnabled(False)
+        self.update_button = QPushButton("Lưu thay đổi", self)
+        self.update_button.setEnabled(False)
+        self.save_button = QPushButton("Lưu điểm", self)
+        self.save_button.setEnabled(False)
+        self.update_button.setProperty("variant", "primary")
+        self.save_button.setProperty("variant", "primary")
+        self.edit_button.setProperty("variant", "secondary")
+        self.cancel_edit_button.setProperty("variant", "secondary")
+        table_header.addWidget(self.edit_button)
+        table_header.addWidget(self.cancel_edit_button)
+        table_header.addWidget(self.update_button)
+        table_header.addWidget(self.save_button)
+        placeholder_layout.addLayout(table_header)
+
+        self.context_status_label = QLabel(self)
+        self.context_status_label.setObjectName("scoreContextStatus")
+        self.context_status_label.setWordWrap(True)
+        placeholder_layout.addWidget(self.context_status_label)
+
+        self.placeholder_label = QLabel(
+            "Chọn bài đánh giá để xem hoặc nhập điểm.",
+            self.score_table_placeholder,
+        )
+        self.placeholder_label.setObjectName("scoreEmptyTitle")
+        self.placeholder_label.setWordWrap(True)
         self.placeholder_label.setAlignment(
             Qt.AlignmentFlag.AlignCenter
         )
@@ -172,6 +266,7 @@ class ScoresPage(QWidget):
         self.score_table = QTableWidget(
             self.score_table_placeholder
         )
+        self.score_table.setObjectName("scoreEntryTable")
         self.score_table.setColumnCount(len(self.TABLE_HEADERS))
         self.score_table.setHorizontalHeaderLabels(
             self.TABLE_HEADERS
@@ -180,8 +275,12 @@ class ScoresPage(QWidget):
             QAbstractItemView.SelectionBehavior.SelectRows
         )
         self.score_table.setAlternatingRowColors(True)
+        self.score_table.setShowGrid(False)
+        self.score_table.setWordWrap(False)
         self.score_table.verticalHeader().setVisible(False)
+        self.score_table.verticalHeader().setDefaultSectionSize(40)
         header = self.score_table.horizontalHeader()
+        header.setMinimumHeight(42)
         header.setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
@@ -189,24 +288,10 @@ class ScoresPage(QWidget):
             2,
             QHeaderView.ResizeMode.Stretch,
         )
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.score_table.setColumnWidth(3, 110)
         placeholder_layout.addWidget(self.score_table, 1)
         root.addWidget(self.score_table_placeholder, 1)
-
-        actions = QHBoxLayout()
-        actions.addStretch(1)
-        self.edit_button = QPushButton("Sửa", self)
-        self.edit_button.setEnabled(False)
-        actions.addWidget(self.edit_button)
-        self.cancel_edit_button = QPushButton("Hủy sửa", self)
-        self.cancel_edit_button.setEnabled(False)
-        actions.addWidget(self.cancel_edit_button)
-        self.update_button = QPushButton("Lưu thay đổi", self)
-        self.update_button.setEnabled(False)
-        actions.addWidget(self.update_button)
-        self.save_button = QPushButton("Lưu điểm", self)
-        self.save_button.setEnabled(False)
-        actions.addWidget(self.save_button)
-        root.addLayout(actions)
 
         self.context_filter.context_changed.connect(
             self._on_context_changed
@@ -466,6 +551,7 @@ class ScoresPage(QWidget):
         self,
         context: ScoreContextSelection,
     ) -> None:
+        self._render_assessment_info()
         if context.is_complete:
             self.context_status_label.setText(
                 "Đã chọn đầy đủ ngữ cảnh."
@@ -475,7 +561,7 @@ class ScoresPage(QWidget):
             return
 
         self._clear_students(
-            "Chọn đầy đủ ngữ cảnh để tải danh sách học sinh."
+            "Chọn bài đánh giá để xem hoặc nhập điểm."
         )
         self.context_status_label.setText(
             "Vui lòng chọn năm học, khối, lớp, môn học "
@@ -486,7 +572,7 @@ class ScoresPage(QWidget):
         context = self.current_context()
         if not context.is_complete or not self._can_read_scores():
             self._clear_students(
-                "Chọn đầy đủ ngữ cảnh để tải danh sách học sinh."
+                "Chọn bài đánh giá để xem hoặc nhập điểm."
             )
             return False
 
@@ -527,7 +613,7 @@ class ScoresPage(QWidget):
             )
         else:
             self.context_status_label.setText(
-                "Lớp chưa có học sinh."
+                "Chưa có học sinh trong phạm vi đã chọn."
             )
         return True
 
@@ -593,6 +679,24 @@ class ScoresPage(QWidget):
                 else "Chưa có điểm"
             )
 
+            for centered_item in (
+                number_item,
+                code_item,
+                score_item,
+                status_item,
+            ):
+                centered_item.setTextAlignment(
+                    Qt.AlignmentFlag.AlignCenter
+                )
+            foreground, background = status_badge_colors(
+                "ACTIVE" if item.score_id is not None else "INACTIVE"
+            )
+            status_item.setForeground(QColor(foreground))
+            status_item.setBackground(QColor(background))
+            if item.score_id is None:
+                score_item.setForeground(QColor(TEXT_PRIMARY))
+                score_item.setBackground(QColor(SIDEBAR_BACKGROUND))
+
             for read_only_item in (
                 number_item,
                 code_item,
@@ -622,7 +726,7 @@ class ScoresPage(QWidget):
         self.score_table.setVisible(has_students)
         if not has_students:
             self.placeholder_label.setText(
-                "Lớp chưa có học sinh."
+                "Chưa có học sinh trong phạm vi đã chọn."
             )
         self._update_save_state()
         self._update_edit_state()
@@ -823,6 +927,7 @@ class ScoresPage(QWidget):
         self.save_button.setEnabled(can_save)
         if self._editing_row is not None:
             self.save_button.setEnabled(False)
+        self.unsaved_label.setVisible(can_save and self._editing_row is None)
 
     def _update_edit_state(self) -> None:
         editing = self._editing_row is not None
@@ -838,6 +943,11 @@ class ScoresPage(QWidget):
         self.update_button.setEnabled(editing)
         if editing:
             self.save_button.setEnabled(False)
+            self.unsaved_label.setText("Đang chỉnh sửa điểm đã lưu")
+            self.unsaved_label.setVisible(True)
+        elif not self.save_button.isEnabled():
+            self.unsaved_label.setText("Có thay đổi chưa lưu")
+            self.unsaved_label.setVisible(False)
 
     def _clear_students(self, message: str) -> None:
         self._enrollments = ()
@@ -857,6 +967,50 @@ class ScoresPage(QWidget):
         self.edit_button.setEnabled(False)
         self.cancel_edit_button.setEnabled(False)
         self.update_button.setEnabled(False)
+        self.unsaved_label.setText("Có thay đổi chưa lưu")
+        self.unsaved_label.setVisible(False)
+
+    def _render_assessment_info(self) -> None:
+        assessment = self.context_filter.selected_assessment()
+        if assessment is None:
+            self.assessment_name_label.setText("Chưa chọn bài đánh giá")
+            self.assessment_meta_label.setText(
+                "Chọn năm học, lớp và môn học để tiếp tục."
+            )
+            status_value = "NONE"
+            status_text = "Chưa chọn"
+        else:
+            status_value = str(
+                getattr(assessment.status, "value", assessment.status)
+            )
+            status_text = {
+                "ACTIVE": "Đang mở",
+                "LOCKED": "Đã khóa",
+                "CANCELLED": "Ngừng sử dụng",
+            }.get(status_value, status_value)
+            assessment_date = getattr(assessment, "assessment_date", None)
+            date_text = (
+                assessment_date.strftime("%d/%m/%Y")
+                if assessment_date is not None
+                else "Chưa có ngày"
+            )
+            assessment_type = getattr(assessment, "assessment_type", None)
+            type_text = assessment_type or "Không phân loại"
+            self.assessment_name_label.setText(assessment.assessment_name)
+            self.assessment_meta_label.setText(
+                f"{self.subject_combo.currentText()}  •  {date_text}  •  {type_text}"
+            )
+        self.assessment_status_label.setText(status_text)
+        self.assessment_status_label.setProperty(
+            "assessmentStatus",
+            status_value,
+        )
+        self.assessment_status_label.style().unpolish(
+            self.assessment_status_label
+        )
+        self.assessment_status_label.style().polish(
+            self.assessment_status_label
+        )
 
     def _can_read_scores(self) -> bool:
         return (

@@ -3,9 +3,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
+    QFrame,
     QLabel,
     QMessageBox,
     QPushButton,
@@ -14,6 +16,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QHeaderView,
+    QSplitter,
+    QStackedLayout,
     QWidget,
 )
 
@@ -41,6 +45,7 @@ from ui.widgets.enrollment_history_widget import (
     EnrollmentHistoryWidget,
 )
 from ui.widgets.student_filter_widget import StudentFilterWidget
+from ui.theme import status_badge_colors, student_page_stylesheet
 
 
 def student_status_label(status) -> str:
@@ -105,6 +110,7 @@ class StudentsPage(QWidget):
         self._enrollment_history: tuple[EnrollmentListItem, ...] = ()
 
         self.setObjectName("studentsPage")
+        self.setStyleSheet(student_page_stylesheet())
         self._build_ui()
         self._connect_signals()
         apply_action_permission(
@@ -135,21 +141,28 @@ class StudentsPage(QWidget):
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 24)
-        root.setSpacing(16)
-
-        row = QHBoxLayout()
-        titles = QVBoxLayout()
+        root.setSpacing(14)
 
         self.title_label = QLabel("Học sinh", self)
         self.subtitle_label = QLabel(
-            "Quản lý hồ sơ và quá trình học tập của học sinh",
+            "Quản lý hồ sơ và lớp học của học sinh",
             self,
         )
+        self.title_label.setVisible(False)
+        self.subtitle_label.setVisible(False)
 
-        titles.addWidget(self.title_label)
-        titles.addWidget(self.subtitle_label)
-        row.addLayout(titles)
-        row.addStretch(1)
+        self.toolbar_frame = QFrame(self)
+        self.toolbar_frame.setObjectName("studentsToolbarFrame")
+        toolbar_layout = QVBoxLayout(self.toolbar_frame)
+        toolbar_layout.setContentsMargins(16, 14, 16, 14)
+        toolbar_layout.setSpacing(12)
+
+        self.filter_widget = StudentFilterWidget(
+            academic_service=self.academic_service,
+            parent=self.toolbar_frame,
+        )
+        self.search_input = self.filter_widget.search_input
+        toolbar_layout.addWidget(self.filter_widget)
 
         self.refresh_button = QPushButton("Làm mới", self)
         self.export_button = QPushButton("Xuất Excel", self)
@@ -157,34 +170,61 @@ class StudentsPage(QWidget):
         self.edit_button = QPushButton("Sửa học sinh", self)
         self.profile_button = QPushButton("Xem hồ sơ", self)
         self.add_button = QPushButton("+ Thêm học sinh", self)
+        self.add_button.setObjectName("addStudentButton")
+        self.add_button.setProperty("variant", "primary")
+        self.export_button.setProperty("variant", "secondary")
+        self.refresh_button.setProperty("variant", "secondary")
+        self.edit_button.setProperty("variant", "secondary")
+        self.profile_button.setProperty("variant", "secondary")
+        for button in (
+            self.add_button,
+            self.export_button,
+            self.refresh_button,
+            self.edit_button,
+            self.profile_button,
+        ):
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.edit_button.setEnabled(False)
         self.profile_button.setEnabled(False)
 
-        row.addWidget(self.refresh_button)
-        row.addWidget(self.export_button)
-        row.addWidget(self.edit_button)
-        row.addWidget(self.profile_button)
-        row.addWidget(self.add_button)
-        root.addLayout(row)
+        toolbar_actions = QHBoxLayout()
+        toolbar_actions.setSpacing(10)
+        toolbar_actions.addWidget(self.add_button)
+        toolbar_actions.addWidget(self.export_button)
+        toolbar_actions.addWidget(self.refresh_button)
+        toolbar_actions.addStretch(1)
+        toolbar_layout.addLayout(toolbar_actions)
+        root.addWidget(self.toolbar_frame)
 
-        self.filter_widget = StudentFilterWidget(
-            academic_service=self.academic_service,
-            parent=self,
-        )
-        self.search_input = self.filter_widget.search_input
-        root.addWidget(self.filter_widget)
+        self.content_splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        self.content_splitter.setObjectName("studentsContentSplitter")
+        self.content_splitter.setChildrenCollapsible(False)
 
-        self.current_enrollment_widget = CurrentEnrollmentWidget(
-            self
-        )
-        root.addWidget(self.current_enrollment_widget)
+        self.table_card = QFrame(self.content_splitter)
+        self.table_card.setObjectName("studentsTableCard")
+        table_card_layout = QVBoxLayout(self.table_card)
+        table_card_layout.setContentsMargins(14, 12, 14, 14)
+        table_card_layout.setSpacing(10)
 
-        self.enrollment_history_widget = EnrollmentHistoryWidget(
-            self
-        )
-        root.addWidget(self.enrollment_history_widget)
+        table_header = QHBoxLayout()
+        self.summary_prefix_label = QLabel("Tổng:", self.table_card)
+        self.summary_prefix_label.setObjectName("studentsCountLabel")
+        self.count_label = QLabel("0 học sinh", self.table_card)
+        self.count_label.setObjectName("studentsCountLabel")
+        table_header.addWidget(self.summary_prefix_label)
+        table_header.addWidget(self.count_label)
+        table_header.addStretch(1)
+        table_header.addWidget(self.profile_button)
+        table_header.addWidget(self.edit_button)
+        table_card_layout.addLayout(table_header)
 
-        self.table = QTableWidget(self)
+        self.table_host = QWidget(self.table_card)
+        self.table_host.setObjectName("studentsTableHost")
+        self.table_stack = QStackedLayout(self.table_host)
+        self.table_stack.setContentsMargins(0, 0, 0, 0)
+
+        self.table = QTableWidget(self.table_host)
+        self.table.setObjectName("studentsTable")
         self.table.setColumnCount(len(self.TABLE_HEADERS))
         self.table.setHorizontalHeaderLabels(self.TABLE_HEADERS)
         self.table.setEditTriggers(
@@ -197,9 +237,13 @@ class StudentsPage(QWidget):
             QAbstractItemView.SelectionMode.SingleSelection
         )
         self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
+        self.table.setWordWrap(False)
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(40)
 
         header = self.table.horizontalHeader()
+        header.setMinimumHeight(42)
         header.setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
@@ -208,13 +252,49 @@ class StudentsPage(QWidget):
             QHeaderView.ResizeMode.Stretch,
         )
 
-        root.addWidget(self.table, 1)
+        self.empty_widget = QWidget(self.table_host)
+        self.empty_widget.setObjectName("studentsEmptyState")
+        empty_layout = QVBoxLayout(self.empty_widget)
+        empty_layout.setContentsMargins(24, 24, 24, 24)
+        empty_layout.addStretch(1)
+        self.empty_title_label = QLabel("Chưa có học sinh", self.empty_widget)
+        self.empty_title_label.setObjectName("studentsEmptyTitle")
+        self.empty_title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_description_label = QLabel(
+            "Thêm học sinh hoặc thay đổi bộ lọc để bắt đầu.",
+            self.empty_widget,
+        )
+        self.empty_description_label.setObjectName("studentsEmptyDescription")
+        self.empty_description_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_layout.addWidget(self.empty_title_label)
+        empty_layout.addWidget(self.empty_description_label)
+        empty_layout.addStretch(1)
 
-        footer = QHBoxLayout()
-        self.count_label = QLabel("0 học sinh", self)
-        footer.addWidget(self.count_label)
-        footer.addStretch(1)
-        root.addLayout(footer)
+        self.table_stack.addWidget(self.table)
+        self.table_stack.addWidget(self.empty_widget)
+        self.table_stack.setCurrentWidget(self.empty_widget)
+        table_card_layout.addWidget(self.table_host, 1)
+
+        self.details_card = QFrame(self.content_splitter)
+        self.details_card.setObjectName("studentsDetailsCard")
+        details_layout = QVBoxLayout(self.details_card)
+        details_layout.setContentsMargins(14, 12, 14, 14)
+        details_layout.setSpacing(10)
+        self.details_title_label = QLabel("Thông tin lớp học", self.details_card)
+        self.details_title_label.setObjectName("studentsDetailsTitle")
+        details_layout.addWidget(self.details_title_label)
+
+        self.current_enrollment_widget = CurrentEnrollmentWidget(self.details_card)
+        self.enrollment_history_widget = EnrollmentHistoryWidget(self.details_card)
+        details_layout.addWidget(self.current_enrollment_widget)
+        details_layout.addWidget(self.enrollment_history_widget, 1)
+
+        self.content_splitter.addWidget(self.table_card)
+        self.content_splitter.addWidget(self.details_card)
+        self.content_splitter.setStretchFactor(0, 3)
+        self.content_splitter.setStretchFactor(1, 2)
+        self.content_splitter.setSizes((760, 360))
+        root.addWidget(self.content_splitter, 1)
 
     def _connect_signals(self) -> None:
         self.add_button.clicked.connect(
@@ -372,9 +452,16 @@ class StudentsPage(QWidget):
                     cell.setTextAlignment(
                         Qt.AlignmentFlag.AlignCenter
                     )
+                if column == 5:
+                    foreground, background = status_badge_colors(item.status)
+                    cell.setForeground(QColor(foreground))
+                    cell.setBackground(QColor(background))
                 self.table.setItem(row, column, cell)
 
         self.table.blockSignals(False)
+        self.table_stack.setCurrentWidget(
+            self.table if self._items else self.empty_widget
+        )
 
         self.set_student_count(len(self._items))
         self._clear_current_enrollment()

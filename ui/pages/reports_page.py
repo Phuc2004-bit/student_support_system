@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -9,6 +10,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -25,6 +27,7 @@ from ui.widgets.support_filter_widget import (
     SupportFilterWidget,
 )
 from utils.report_labels import review_result_label, status_label
+from ui.theme import reports_page_stylesheet, status_badge_colors
 
 
 class ReportsPage(ReportExcelActions, QWidget):
@@ -34,7 +37,7 @@ class ReportsPage(ReportExcelActions, QWidget):
     STATE_EMPTY = "empty"
     STATE_ERROR = "error"
 
-    EMPTY_MESSAGE = "Không có dữ liệu báo cáo phù hợp bộ lọc."
+    EMPTY_MESSAGE = "Không có dữ liệu phù hợp với bộ lọc hiện tại."
 
     KPI_TITLES = {
         "total_cases": "Tổng số ca",
@@ -87,6 +90,7 @@ class ReportsPage(ReportExcelActions, QWidget):
         self._load_state = self.STATE_IDLE
         self.setObjectName("reportsPage")
         self._build_ui()
+        self.setStyleSheet(reports_page_stylesheet())
         self._connect_signals()
 
     @property
@@ -95,8 +99,18 @@ class ReportsPage(ReportExcelActions, QWidget):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 20, 24, 24)
-        root.setSpacing(16)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setObjectName("reportsScrollArea")
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_contents = QWidget(self.scroll_area)
+        self.scroll_contents.setObjectName("reportsScrollContents")
+        content = QVBoxLayout(self.scroll_contents)
+        content.setContentsMargins(20, 16, 20, 20)
+        content.setSpacing(12)
 
         heading = QHBoxLayout()
         titles = QVBoxLayout()
@@ -105,20 +119,36 @@ class ReportsPage(ReportExcelActions, QWidget):
             "Tổng hợp tình hình bổ trợ học tập theo ngữ cảnh.",
             self,
         )
+        self.title_label.setObjectName("reportsPageTitle")
+        self.subtitle_label.setObjectName("reportsPageSubtitle")
+        # The application shell already renders the page heading.
+        self.title_label.setVisible(False)
+        self.subtitle_label.setVisible(False)
         titles.addWidget(self.title_label)
         titles.addWidget(self.subtitle_label)
         heading.addLayout(titles)
         heading.addStretch(1)
         self.refresh_button = QPushButton("Làm mới", self)
+        self.refresh_button.setObjectName("reportsRefreshButton")
+        self.refresh_button.setProperty("variant", "primary")
         self._add_excel_action(heading)
         heading.addWidget(self.refresh_button)
-        root.addLayout(heading)
+        content.addLayout(heading)
 
+        self.filter_frame = QFrame(self.scroll_contents)
+        self.filter_frame.setObjectName("reportFilterCard")
+        filter_layout = QVBoxLayout(self.filter_frame)
+        filter_layout.setContentsMargins(16, 14, 16, 16)
+        filter_layout.setSpacing(10)
+        self.filter_caption = QLabel("BỘ LỌC BÁO CÁO", self.filter_frame)
+        self.filter_caption.setObjectName("reportFilterCaption")
+        filter_layout.addWidget(self.filter_caption)
         self.filter_widget = SupportFilterWidget(
             academic_service=self.academic_service,
-            parent=self,
+            parent=self.filter_frame,
         )
-        root.addWidget(self.filter_widget)
+        filter_layout.addWidget(self.filter_widget)
+        content.addWidget(self.filter_frame)
         self.school_year_combo = self.filter_widget.school_year_combo
         self.grade_combo = self.filter_widget.grade_combo
         self.class_combo = self.filter_widget.class_combo
@@ -126,15 +156,19 @@ class ReportsPage(ReportExcelActions, QWidget):
         self.status_combo = self.filter_widget.status_combo
 
         self.state_label = QLabel(self)
+        self.state_label.setObjectName("reportStateLabel")
         self.state_label.setWordWrap(True)
-        root.addWidget(self.state_label)
+        content.addWidget(self.state_label)
 
         self._build_summary_section()
         self._build_cases_section()
         self._build_charts_section()
-        root.addWidget(self.summary_frame)
-        root.addWidget(self.cases_frame, 1)
-        root.addWidget(self.charts_frame)
+        content.addWidget(self.summary_frame)
+        content.addWidget(self.charts_frame)
+        content.addWidget(self.cases_frame)
+        content.addStretch(1)
+        self.scroll_area.setWidget(self.scroll_contents)
+        root.addWidget(self.scroll_area)
 
         self._show_empty("Vui lòng chọn năm học để tải báo cáo.")
 
@@ -142,17 +176,33 @@ class ReportsPage(ReportExcelActions, QWidget):
         self.summary_frame = QFrame(self)
         self.summary_frame.setObjectName("reportSummaryFrame")
         layout = QVBoxLayout(self.summary_frame)
+        layout.setContentsMargins(16, 14, 16, 16)
+        layout.setSpacing(12)
         self.summary_title_label = QLabel(
-            "Tổng quan báo cáo",
+            "TỔNG QUAN BÁO CÁO",
             self.summary_frame,
         )
+        self.summary_title_label.setObjectName("reportSectionTitle")
         layout.addWidget(self.summary_title_label)
 
         grid = QGridLayout()
         grid.setSpacing(12)
         self.kpi_cards: dict[str, KpiCard] = {}
+        accents = {
+            "total_cases": "primary",
+            "detected_count": "warning",
+            "planned_count": "primary",
+            "in_progress_count": "primary",
+            "waiting_review_count": "warning",
+            "continue_count": "danger",
+            "completed_count": "success",
+        }
         for index, (key, title) in enumerate(self.KPI_TITLES.items()):
-            card = KpiCard(title, self.summary_frame)
+            card = KpiCard(
+                title,
+                self.summary_frame,
+                accent=accents[key],
+            )
             card.setObjectName(f"reportKpiCard_{key}")
             self.kpi_cards[key] = card
             grid.addWidget(card, index // 4, index % 4)
@@ -164,15 +214,37 @@ class ReportsPage(ReportExcelActions, QWidget):
         self.cases_frame = QFrame(self)
         self.cases_frame.setObjectName("reportCasesFrame")
         layout = QVBoxLayout(self.cases_frame)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        cases_header = QHBoxLayout()
+        cases_header.setContentsMargins(16, 12, 16, 10)
         self.cases_title_label = QLabel(
-            "Danh sách ca bổ trợ",
+            "CHI TIẾT HỒ SƠ BỔ TRỢ",
             self.cases_frame,
         )
-        layout.addWidget(self.cases_title_label)
+        self.cases_title_label.setObjectName("reportSectionTitle")
+        cases_header.addWidget(self.cases_title_label)
+        cases_header.addStretch(1)
+        self.row_count_label = QLabel("0 hồ sơ", self.cases_frame)
+        self.row_count_label.setObjectName("reportRowCountLabel")
+        cases_header.addWidget(self.row_count_label)
+        layout.addLayout(cases_header)
 
-        self.empty_label = QLabel(self.EMPTY_MESSAGE, self.cases_frame)
+        self.empty_container = QWidget(self.cases_frame)
+        empty_layout = QVBoxLayout(self.empty_container)
+        empty_layout.setContentsMargins(24, 48, 24, 48)
+        self.empty_title_label = QLabel(
+            "Chưa có dữ liệu báo cáo", self.empty_container
+        )
+        self.empty_title_label.setObjectName("reportEmptyTitle")
+        self.empty_title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_label = QLabel(self.EMPTY_MESSAGE, self.empty_container)
+        self.empty_label.setObjectName("reportEmptyDescription")
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.empty_label)
+        self.empty_label.setWordWrap(True)
+        empty_layout.addWidget(self.empty_title_label)
+        empty_layout.addWidget(self.empty_label)
+        layout.addWidget(self.empty_container)
 
         self.table = QTableWidget(self.cases_frame)
         self.table.setObjectName("reportCasesTable")
@@ -188,23 +260,30 @@ class ReportsPage(ReportExcelActions, QWidget):
             QAbstractItemView.SelectionMode.SingleSelection
         )
         self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
+        self.table.setWordWrap(False)
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(40)
         header = self.table.horizontalHeader()
+        header.setMinimumHeight(42)
         header.setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.table.setMinimumHeight(280)
         layout.addWidget(self.table, 1)
 
     def _build_charts_section(self) -> None:
         self.charts_frame = QFrame(self)
         self.charts_frame.setObjectName("reportChartsFrame")
         layout = QVBoxLayout(self.charts_frame)
+        layout.setContentsMargins(16, 14, 16, 16)
+        layout.setSpacing(12)
         self.charts_title_label = QLabel(
-            "Biểu đồ / thống kê",
+            "BIỂU ĐỒ THỐNG KÊ",
             self.charts_frame,
         )
-        self.charts_title_label.setObjectName("reportChartsFrameTitle")
+        self.charts_title_label.setObjectName("reportSectionTitle")
         layout.addWidget(self.charts_title_label)
 
         charts_layout = QHBoxLayout()
@@ -227,6 +306,7 @@ class ReportsPage(ReportExcelActions, QWidget):
         charts_layout.addWidget(self.status_chart, 1)
         charts_layout.addWidget(self.subject_chart, 1)
         layout.addLayout(charts_layout)
+        self.charts_frame.setMinimumHeight(330)
 
     def _placeholder_section(
         self,
@@ -338,11 +418,22 @@ class ReportsPage(ReportExcelActions, QWidget):
                         Qt.ItemDataRole.UserRole,
                         item.intervention_id,
                     )
+                if column in (0, 3, 4, 6, 7, 8, 9, 10, 11):
+                    table_item.setTextAlignment(
+                        Qt.AlignmentFlag.AlignCenter
+                    )
+                if column == 8:
+                    foreground, background = status_badge_colors(
+                        item.status
+                    )
+                    table_item.setForeground(QColor(foreground))
+                    table_item.setBackground(QColor(background))
                 self.table.setItem(row_index, column, table_item)
 
         has_rows = bool(data.rows)
-        self.empty_label.setVisible(not has_rows)
+        self.empty_container.setVisible(not has_rows)
         self.table.setVisible(has_rows)
+        self.row_count_label.setText(f"{len(data.rows)} hồ sơ")
         self.status_chart.set_data(self._status_chart_items(data))
         self.subject_chart.set_data(self._subject_chart_items(data))
 
@@ -434,6 +525,8 @@ class ReportsPage(ReportExcelActions, QWidget):
             card.set_value(0)
         self.table.setRowCount(0)
         self.table.setVisible(False)
+        self.empty_container.setVisible(True)
         self.empty_label.setVisible(True)
+        self.row_count_label.setText("0 hồ sơ")
         self.status_chart.set_data(())
         self.subject_chart.set_data(())

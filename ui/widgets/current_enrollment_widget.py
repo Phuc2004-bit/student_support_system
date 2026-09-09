@@ -23,6 +23,7 @@ class CurrentEnrollmentWidget(QWidget):
         super().__init__(parent)
 
         self._enrollment: EnrollmentListItem | None = None
+        self.setObjectName("currentEnrollmentWidget")
         self._build_ui()
         self._connect_signals()
         self.set_enrollment(None)
@@ -35,17 +36,21 @@ class CurrentEnrollmentWidget(QWidget):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(7)
 
         self.heading_label = QLabel(
             "Lớp hiện tại",
             self,
         )
+        self.heading_label.setObjectName("currentEnrollmentHeading")
         root.addWidget(self.heading_label)
 
         self.class_label = QLabel(
             "Chưa xếp lớp",
             self,
         )
+        self.class_label.setObjectName("currentEnrollmentClass")
         self.year_label = QLabel(
             "—",
             self,
@@ -69,6 +74,8 @@ class CurrentEnrollmentWidget(QWidget):
             "Chuyển lớp",
             self,
         )
+        self.assign_button.setProperty("variant", "primary")
+        self.transfer_button.setProperty("variant", "secondary")
 
         actions.addWidget(self.assign_button)
         actions.addWidget(self.transfer_button)

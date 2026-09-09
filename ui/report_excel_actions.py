@@ -15,6 +15,7 @@ class ReportExcelActions:
     def _add_excel_action(self, layout) -> None:
         self.export_button = QPushButton("Xuất Excel", self)
         self.export_button.setObjectName("exportReportsExcelButton")
+        self.export_button.setProperty("variant", "secondary")
         apply_action_permission(
             self.export_button,
             self.excel_permission_check,

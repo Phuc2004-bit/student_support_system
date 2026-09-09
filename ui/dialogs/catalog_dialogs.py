@@ -9,7 +9,9 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QSpinBox,
     QVBoxLayout,
@@ -25,6 +27,7 @@ from models.dto import (
     SupportRule,
 )
 from models.enums import AssessmentStatus
+from ui.theme import dialog_stylesheet
 
 
 def _python_date(value: QDate) -> date:
@@ -33,6 +36,46 @@ def _python_date(value: QDate) -> date:
 
 def _qt_date(value: date) -> QDate:
     return QDate(value.year, value.month, value.day)
+
+
+def _build_dialog_shell(
+    dialog: QDialog,
+    form: QFormLayout,
+    buttons: QDialogButtonBox,
+    title: str,
+    subtitle: str,
+) -> None:
+    dialog.resize(520, dialog.sizeHint().height())
+    title_label = QLabel(title, dialog)
+    title_label.setProperty("dialogTitle", True)
+    subtitle_label = QLabel(subtitle, dialog)
+    subtitle_label.setProperty("dialogSubtitle", True)
+    subtitle_label.setWordWrap(True)
+    card = QFrame(dialog)
+    card.setProperty("dialogCard", True)
+    card.setLayout(form)
+    form.setContentsMargins(20, 18, 20, 18)
+    form.setHorizontalSpacing(18)
+    form.setVerticalSpacing(12)
+    form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+    save_button = buttons.button(QDialogButtonBox.StandardButton.Save)
+    cancel_button = buttons.button(QDialogButtonBox.StandardButton.Cancel)
+    save_button.setText("Lưu")
+    cancel_button.setText("Hủy")
+    save_button.setProperty("variant", "primary")
+    root = QVBoxLayout(dialog)
+    root.setContentsMargins(28, 24, 28, 24)
+    root.setSpacing(14)
+    root.addWidget(title_label)
+    root.addWidget(subtitle_label)
+    root.addWidget(card)
+    root.addWidget(buttons)
+    dialog.title_label = title_label
+    dialog.subtitle_label = subtitle_label
+    dialog.form_card = card
+    dialog.save_button = save_button
+    dialog.cancel_button = cancel_button
+    dialog.setStyleSheet(dialog_stylesheet())
 
 
 class SchoolYearDialog(QDialog):
@@ -69,9 +112,10 @@ class SchoolYearDialog(QDialog):
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-        root = QVBoxLayout(self)
-        root.addLayout(form)
-        root.addWidget(self.button_box)
+        _build_dialog_shell(
+            self, form, self.button_box, self.windowTitle(),
+            "Khai báo thời gian và trạng thái năm học.",
+        )
         if school_year is not None:
             self.year_name_input.setText(school_year.year_name)
             if school_year.start_date is not None:
@@ -112,9 +156,10 @@ class GradeDialog(QDialog):
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-        root = QVBoxLayout(self)
-        root.addLayout(form)
-        root.addWidget(self.button_box)
+        _build_dialog_shell(
+            self, form, self.button_box, self.windowTitle(),
+            "Thiết lập tên hiển thị cho khối lớp.",
+        )
         if grade is not None:
             self.grade_number_input.setValue(grade.grade_number)
             self.grade_number_input.setEnabled(False)
@@ -170,9 +215,10 @@ class ClassDialog(QDialog):
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-        root = QVBoxLayout(self)
-        root.addLayout(form)
-        root.addWidget(self.button_box)
+        _build_dialog_shell(
+            self, form, self.button_box, self.windowTitle(),
+            "Gắn lớp với đúng năm học, khối và giáo viên chủ nhiệm.",
+        )
         if school_class is not None:
             self.class_name_input.setText(school_class.class_name)
             self.teacher_input.setText(school_class.homeroom_teacher or "")
@@ -215,9 +261,10 @@ class SubjectDialog(QDialog):
         form.addRow("Tên môn *", self.name_input)
         form.addRow("", self.active_checkbox)
         self.button_box = _dialog_buttons(self)
-        root = QVBoxLayout(self)
-        root.addLayout(form)
-        root.addWidget(self.button_box)
+        _build_dialog_shell(
+            self, form, self.button_box, self.windowTitle(),
+            "Thông tin môn học được dùng xuyên suốt học vụ và báo cáo.",
+        )
         if subject is not None:
             self.code_input.setText(subject.subject_code)
             self.name_input.setText(subject.subject_name)
@@ -240,7 +287,19 @@ class AssessmentDialog(QDialog):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self.setObjectName("assessmentDialog")
         self.setWindowTitle("Sửa bài đánh giá" if assessment else "Thêm bài đánh giá")
+        self.resize(560, 600)
+        self.title_label = QLabel(
+            "Cập nhật bài đánh giá" if assessment else "Thêm bài đánh giá mới",
+            self,
+        )
+        self.title_label.setProperty("dialogTitle", True)
+        self.subtitle_label = QLabel(
+            "Thiết lập đúng năm học, môn học và trạng thái sử dụng.",
+            self,
+        )
+        self.subtitle_label.setProperty("dialogSubtitle", True)
         self.school_year_combo = QComboBox(self)
         self.subject_combo = QComboBox(self)
         self.name_input = QLineEdit(self)
@@ -268,7 +327,16 @@ class AssessmentDialog(QDialog):
             self.school_year_combo.addItem(item.year_name, item.school_year_id)
         for item in subjects:
             self.subject_combo.addItem(item.subject_name, item.subject_id)
-        form = QFormLayout()
+        self.form_card = QFrame(self)
+        self.form_card.setObjectName("dialogCard")
+        self.form_card.setProperty("dialogCard", True)
+        form = QFormLayout(self.form_card)
+        form.setContentsMargins(20, 18, 20, 18)
+        form.setHorizontalSpacing(18)
+        form.setVerticalSpacing(12)
+        form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
         form.addRow("Năm học *", self.school_year_combo)
         form.addRow("Môn học *", self.subject_combo)
         form.addRow("Tên bài *", self.name_input)
@@ -278,8 +346,23 @@ class AssessmentDialog(QDialog):
         form.addRow("Ngày đánh giá", self.date_input)
         form.addRow("Trạng thái", self.status_combo)
         self.button_box = _dialog_buttons(self)
+        self.save_button = self.button_box.button(
+            QDialogButtonBox.StandardButton.Save
+        )
+        self.cancel_button = self.button_box.button(
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        self.save_button.setText("Lưu" if assessment else "Thêm bài")
+        self.cancel_button.setText("Hủy")
+        self.save_button.setObjectName("primaryDialogButton")
+        self.save_button.setProperty("variant", "primary")
+        self.cancel_button.setProperty("variant", "secondary")
         root = QVBoxLayout(self)
-        root.addLayout(form)
+        root.setContentsMargins(28, 24, 28, 24)
+        root.setSpacing(14)
+        root.addWidget(self.title_label)
+        root.addWidget(self.subtitle_label)
+        root.addWidget(self.form_card, 1)
         root.addWidget(self.button_box)
         if assessment is not None:
             self.school_year_combo.setCurrentIndex(
@@ -299,6 +382,7 @@ class AssessmentDialog(QDialog):
             self.status_combo.setCurrentIndex(
                 self.status_combo.findData(assessment.status)
             )
+        self.setStyleSheet(dialog_stylesheet())
 
     def values(self):
         assessment_date = (
@@ -342,9 +426,16 @@ class SupportRuleDialog(QDialog):
         form.addRow("Ngưỡng *", self.threshold_input)
         form.addRow("", self.active_checkbox)
         self.button_box = _dialog_buttons(self)
-        root = QVBoxLayout(self)
-        root.addLayout(form)
-        root.addWidget(self.button_box)
+        explanation = QLabel(
+            "Học sinh có điểm thấp hơn ngưỡng đang áp dụng sẽ được đưa vào luồng xem xét hỗ trợ.",
+            self,
+        )
+        explanation.setWordWrap(True)
+        form.addRow("", explanation)
+        _build_dialog_shell(
+            self, form, self.button_box, self.windowTitle(),
+            "Cấu hình ngưỡng theo đúng năm học và môn học.",
+        )
         if rule is not None:
             self.school_year_combo.setCurrentIndex(
                 self.school_year_combo.findData(rule.school_year_id)

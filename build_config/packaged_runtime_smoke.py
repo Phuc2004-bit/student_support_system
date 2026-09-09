@@ -14,32 +14,38 @@ from PySide6.QtWidgets import QFileDialog
 
 from config.database import db_settings
 from config.paths import environment_file_path
+from config.settings import settings
 from exceptions import ValidationError
 from models.dto import StudentCreateData
 from models.dto.data_export import ScoreExportContext, StudentExportContext
 from models.dto.report_export import SupportReportExportContext, SupportReportExportData
 from models.dto.score_import import ScoreImportContext, ScoreImportTemplateStudent
 from models.dto.student_filter import StudentFilter
-from models.enums import InterventionStatus, UserRole
+from models.enums import AssessmentStatus, InterventionStatus, UserRole
 from ui.dialogs.intervention_detail_dialog import InterventionDetailDialog
+from ui.dialogs.login_dialog import LoginDialog
 from ui.dialogs.score_import_preview_dialog import ScoreImportPreviewDialog
 from ui.dialogs.student_profile_dialog import StudentProfileDialog
 from ui.main_window import MainWindow
+from ui.theme import APP_BACKGROUND
 
 
 logger = logging.getLogger(__name__)
 PREFIX = os.getenv("PACKAGED_SMOKE_PREFIX", "T153").strip().upper()
-if PREFIX not in {"T153", "T154", "T155"}:
+if PREFIX not in {"T153", "T154", "T155", "T172"}:
     raise RuntimeError("Unsupported packaged smoke fixture prefix.")
 YEAR_NAME = f"{PREFIX}_2627"
 CLASS_NAME = f"{PREFIX}_7A"
 SUBJECT_CODE = f"{PREFIX}_M1"
 SUBJECT_NAME = f"{PREFIX} Môn đóng gói"
 ADMIN_USERNAME = f"{PREFIX.lower()}_admin"
+TEACHER_USERNAME = f"{PREFIX.lower()}_teacher"
 OLD_PASSWORD = f"Aa1!{token_urlsafe(18)}"
 NEW_PASSWORD = f"Bb2!{token_urlsafe(18)}"
 MANUAL_ASSESSMENT_NAME = f"{PREFIX} Manual"
 IMPORT_ASSESSMENT_NAME = f"{PREFIX} Import"
+REVIEW_FAIL_ASSESSMENT_NAME = f"{PREFIX} Review 1"
+REVIEW_PASS_ASSESSMENT_NAME = f"{PREFIX} Review 2"
 STUDENT_CODE_A = f"{PREFIX}01"
 STUDENT_CODE_B = f"{PREFIX}02"
 FORMULA_NAME = f"={PREFIX} Formula"
@@ -159,6 +165,7 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
     result["fixture_prefix"] = PREFIX
     result["db_name"] = _assert_test_database(context)
     result["configured_db"] = db_settings.DATABASE
+    result["app_version"] = settings.APP_VERSION
     result["pyside6_runtime"] = app is not None
     result["pyodbc_runtime"] = result["db_name"] == "student_support_db_test"
     result["dotenv_runtime"] = (
@@ -183,10 +190,19 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
     import_assessment = context.academic_service.create_assessment(
         subject_id, year_id, IMPORT_ASSESSMENT_NAME, 1, "TEST", date(2026, 10, 2)
     )
+    review_fail_assessment = context.academic_service.create_assessment(
+        subject_id, year_id, REVIEW_FAIL_ASSESSMENT_NAME, 1, "TEST", date(2026, 10, 3)
+    )
+    review_pass_assessment = context.academic_service.create_assessment(
+        subject_id, year_id, REVIEW_PASS_ASSESSMENT_NAME, 1, "TEST", date(2026, 10, 4)
+    )
     context.academic_service.create_support_rule(subject_id, year_id, THRESHOLD)
 
     admin_user = context.user_service.create_user(
         ADMIN_USERNAME, OLD_PASSWORD, f"{PREFIX} Admin", UserRole.ADMIN
+    )
+    teacher_user = context.user_service.create_user(
+        TEACHER_USERNAME, OLD_PASSWORD, f"{PREFIX} Teacher", UserRole.TEACHER
     )
     try:
         context.auth_service.login(ADMIN_USERNAME, "wrong-password")
@@ -212,12 +228,25 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
     )
     window = MainWindow(context)
     replacement_window = None
+    teacher_window = None
     try:
+        login_dialog = LoginDialog(context.auth_service)
+        result["v11_login_theme"] = (
+            settings.APP_VERSION == "1.1.0"
+            and APP_BACKGROUND.upper() in login_dialog.styleSheet().upper()
+            and "HỆ THỐNG" in login_dialog.title_label.text()
+        )
+        login_dialog.close()
+
         for page_key in MainWindow.PAGE_TITLES:
             window.navigate_to(page_key)
             app.processEvents()
         result["mainwindow_navigation"] = all(
             window.can_navigate_to(page_key) for page_key in MainWindow.PAGE_TITLES
+        )
+        result["v11_dark_theme"] = (
+            APP_BACKGROUND.upper() in window.styleSheet().upper()
+            and all(window.pages[key] is not None for key in MainWindow.PAGE_TITLES)
         )
         dashboard = window.pages["dashboard"]
         dashboard.bar_chart.canvas.draw()
@@ -277,6 +306,23 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
             intervention.status is InterventionStatus.DETECTED
         )
 
+        context.academic_service.update_assessment(
+            manual_assessment.assessment_id,
+            subject_id,
+            year_id,
+            MANUAL_ASSESSMENT_NAME,
+            1,
+            "TEST",
+            date(2026, 10, 1),
+            AssessmentStatus.LOCKED,
+        )
+        scores_page.context_filter._reload_assessments()
+        result["locked_assessment"] = (
+            scores_page.assessment_combo.findData(
+                manual_assessment.assessment_id
+            ) == -1
+        )
+
         profile_dialog = StudentProfileDialog(
             student_a.student_id, context.student_profile_service
         )
@@ -311,6 +357,84 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
             item.intervention_id == intervention.intervention_id
             for item in support_page.items
         )
+
+        workflow_statuses = [intervention.status]
+        workflow_statuses.append(
+            context.support_service.plan_intervention(
+                intervention.intervention_id,
+                teacher_user.user_id,
+                date(2026, 10, 5),
+                "Kèm cặp",
+                "Packaged workflow",
+            ).status
+        )
+        workflow_statuses.append(
+            context.support_service.start_intervention(
+                intervention.intervention_id
+            ).status
+        )
+        workflow_statuses.append(
+            context.support_service.mark_waiting_review(
+                intervention.intervention_id
+            ).status
+        )
+        workflow_statuses.append(
+            context.support_service.review_intervention(
+                intervention.intervention_id,
+                review_date=date(2026, 10, 6),
+                assessment_id=review_fail_assessment.assessment_id,
+                score_value=Decimal("6.00"),
+            ).status
+        )
+        workflow_statuses.append(
+            context.support_service.continue_intervention(
+                intervention.intervention_id
+            ).status
+        )
+        context.support_service.mark_waiting_review(
+            intervention.intervention_id
+        )
+        workflow_statuses.append(InterventionStatus.WAITING_REVIEW)
+        workflow_statuses.append(
+            context.support_service.review_intervention(
+                intervention.intervention_id,
+                review_date=date(2026, 10, 7),
+                assessment_id=review_pass_assessment.assessment_id,
+                score_value=THRESHOLD,
+            ).status
+        )
+        result["support_workflow"] = workflow_statuses == [
+            InterventionStatus.DETECTED,
+            InterventionStatus.PLANNED,
+            InterventionStatus.IN_PROGRESS,
+            InterventionStatus.WAITING_REVIEW,
+            InterventionStatus.CONTINUE,
+            InterventionStatus.IN_PROGRESS,
+            InterventionStatus.WAITING_REVIEW,
+            InterventionStatus.COMPLETED,
+        ]
+        completed_dialog = InterventionDetailDialog(
+            intervention.intervention_id,
+            context.support_service,
+            planning_service=context.support_service,
+            user_service=context.user_service,
+        )
+        completed_detail = completed_dialog.load_detail()
+        result["no_manual_complete"] = (
+            completed_detail.status is InterventionStatus.COMPLETED
+            and not hasattr(completed_dialog, "complete_button")
+            and not any(
+                button.isEnabled()
+                for button in (
+                    completed_dialog.plan_button,
+                    completed_dialog.start_button,
+                    completed_dialog.waiting_review_button,
+                    completed_dialog.review_button,
+                    completed_dialog.continue_button,
+                )
+            )
+        )
+        completed_dialog.close()
 
         reports_page = window.pages["reports"]
         _select(reports_page.school_year_combo, year_id)
@@ -367,7 +491,32 @@ def _run_checks(app, context, output_dir: Path) -> dict[str, object]:
         result["logout_relogin"] = (
             stale_window_blocked and replacement_window.can_navigate_to("students")
         )
+
+        teacher_session = context.auth_service.login(
+            TEACHER_USERNAME, OLD_PASSWORD
+        )
+        context.set_session(teacher_session)
+        teacher_window = MainWindow(context)
+        teacher_pages = (
+            "dashboard", "students", "scores", "support", "reports", "system"
+        )
+        for page_key in teacher_pages:
+            teacher_window.navigate_to(page_key)
+            app.processEvents()
+        teacher_system = teacher_window.pages["system"]
+        result["teacher_permissions"] = (
+            all(teacher_window.can_navigate_to(key) for key in teacher_pages)
+            and not teacher_window.can_navigate_to("catalogs")
+            and teacher_window.sidebar._buttons["catalogs"].isHidden()
+            and teacher_system.tabs.count() == 1
+        )
+        teacher_window.request_logout()
+        result["teacher_logout_guard"] = not teacher_window.can_navigate_to(
+            "students"
+        )
     finally:
+        if teacher_window is not None:
+            teacher_window.close()
         if replacement_window is not None:
             replacement_window.close()
         window.close()
@@ -501,11 +650,20 @@ def run_packaged_runtime_smoke(app, context, result_path: str) -> int:
         _assert_test_database(context)
         guarded = True
         payload = _run_checks(app, context, output.parent)
-        if not all(value is True for key, value in payload.items() if key not in {
+        excluded_result_keys = {
             "env_file", "executable", "working_directory", "runtime_paths",
-            "fixture_prefix", "db_name", "configured_db", "excel_files"
-        }):
-            raise AssertionError("One or more packaged smoke checks failed.")
+            "fixture_prefix", "db_name", "configured_db", "app_version",
+            "excel_files"
+        }
+        failed_checks = [
+            key
+            for key, value in payload.items()
+            if key not in excluded_result_keys and value is not True
+        ]
+        if failed_checks:
+            raise AssertionError(
+                "Packaged smoke checks failed: " + ", ".join(failed_checks)
+            )
         exit_code = 0
         logger.info("Packaged functional smoke completed")
     except RuntimeError as exc:

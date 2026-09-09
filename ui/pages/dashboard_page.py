@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -24,12 +25,12 @@ class DashboardPage(QWidget):
     TITLE = "Tổng quan"
 
     KPI_DEFINITIONS = (
-        ("total_students", "Tổng học sinh"),
-        ("needs_support_count", "Cần bổ trợ"),
-        ("in_progress_count", "Đang bổ trợ"),
-        ("waiting_review_count", "Chờ đánh giá"),
-        ("completed_count", "Đã đạt ngưỡng"),
-        ("continue_count", "Cần tiếp tục"),
+        ("total_students", "Tổng học sinh", "primary"),
+        ("needs_support_count", "Cần bổ trợ", "warning"),
+        ("in_progress_count", "Đang bổ trợ", "primary"),
+        ("completed_count", "Đã đạt ngưỡng", "success"),
+        ("waiting_review_count", "Chờ đánh giá", "warning"),
+        ("continue_count", "Cần tiếp tục", "danger"),
     )
 
     STATE_IDLE = "IDLE"
@@ -58,14 +59,29 @@ class DashboardPage(QWidget):
 
     def _build_ui(self) -> None:
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(24, 24, 24, 24)
-        root_layout.setSpacing(16)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
 
-        self._build_header(root_layout)
-        self._build_filter_section(root_layout)
-        self._build_kpi_section(root_layout)
-        self._build_chart_section(root_layout)
-        self._build_attention_section(root_layout)
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setObjectName("dashboardScrollArea")
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+
+        self.scroll_contents = QWidget(self.scroll_area)
+        self.scroll_contents.setObjectName("dashboardScrollContents")
+        content_layout = QVBoxLayout(self.scroll_contents)
+        content_layout.setContentsMargins(24, 20, 24, 24)
+        content_layout.setSpacing(16)
+
+        self._build_header(content_layout)
+        self._build_kpi_section(content_layout)
+        self._build_filter_section(content_layout)
+        self._build_chart_section(content_layout)
+        self._build_attention_section(content_layout)
+        content_layout.addStretch(1)
+
+        self.scroll_area.setWidget(self.scroll_contents)
+        root_layout.addWidget(self.scroll_area)
 
     def _build_header(self, parent_layout: QVBoxLayout) -> None:
         header_layout = QHBoxLayout()
@@ -96,6 +112,8 @@ class DashboardPage(QWidget):
 
         self.refresh_button = QPushButton("Làm mới", self)
         self.refresh_button.setObjectName("dashboardRefreshButton")
+        self.refresh_button.setProperty("variant", "primary")
+        self.refresh_button.setCursor(Qt.CursorShape.PointingHandCursor)
         header_layout.addWidget(
             self.refresh_button,
             alignment=Qt.AlignmentFlag.AlignTop,
@@ -181,21 +199,26 @@ class DashboardPage(QWidget):
         self.kpi_grid_layout.setHorizontalSpacing(12)
         self.kpi_grid_layout.setVerticalSpacing(12)
 
-        for index, (key, title) in enumerate(self.KPI_DEFINITIONS):
-            card = KpiCard(title=title, parent=self.kpi_frame)
+        for index, (key, title, accent) in enumerate(self.KPI_DEFINITIONS):
+            card = KpiCard(
+                title=title,
+                parent=self.kpi_frame,
+                accent=accent,
+            )
             card.setObjectName(f"kpiCard_{key}")
             self.kpi_cards[key] = card
 
             self.kpi_grid_layout.addWidget(
                 card,
-                index // 3,
-                index % 3,
+                index // 4,
+                index % 4,
             )
 
-        for column in range(3):
+        for column in range(4):
             self.kpi_grid_layout.setColumnStretch(column, 1)
 
         section_layout.addLayout(self.kpi_grid_layout)
+        parent_layout.addWidget(self.kpi_frame)
 
     def _build_chart_section(self, parent_layout: QVBoxLayout) -> None:
         self.chart_frame = self._create_section_frame(
@@ -214,6 +237,8 @@ class DashboardPage(QWidget):
 
         self.bar_chart = DashboardBarChart(self.chart_frame)
         self.donut_chart = DashboardDonutChart(self.chart_frame)
+        self.bar_chart.setMinimumHeight(290)
+        self.donut_chart.setMinimumHeight(290)
 
         charts_layout.addWidget(self.bar_chart, 1)
         charts_layout.addWidget(self.donut_chart, 1)
@@ -230,7 +255,7 @@ class DashboardPage(QWidget):
         layout.setSpacing(10)
 
         self.attention_title_label = QLabel(
-            "Cần chú ý",
+            "Học sinh cần chú ý",
             self.attention_frame,
         )
         self.attention_title_label.setObjectName(

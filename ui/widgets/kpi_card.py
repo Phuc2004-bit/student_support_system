@@ -24,6 +24,8 @@ class KpiCard(QFrame):
         self,
         title: str,
         parent: QWidget | None = None,
+        *,
+        accent: str = "primary",
     ) -> None:
         super().__init__(parent)
 
@@ -36,6 +38,9 @@ class KpiCard(QFrame):
         self._value = 0
 
         self.setObjectName("kpiCard")
+        self.setProperty("cardRole", "kpi")
+        self.setProperty("accent", accent)
+        self.setMinimumHeight(108)
         self.setFrameShape(
             QFrame.Shape.StyledPanel
         )

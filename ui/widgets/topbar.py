@@ -63,20 +63,34 @@ class Topbar(QFrame):
     def _build_ui(self) -> None:
         layout = QHBoxLayout(self)
         layout.setContentsMargins(
-            20,
+            24,
             0,
-            20,
+            24,
             0,
         )
-        layout.setSpacing(12)
+        layout.setSpacing(16)
+
+        title_container = QWidget(self)
+        title_container.setObjectName("topbarTitleContainer")
+        title_layout = QVBoxLayout(title_container)
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.setSpacing(2)
 
         self.app_title_label = QLabel(
             "Quản lý học sinh cần bổ trợ",
-            self,
+            title_container,
         )
         self.app_title_label.setObjectName(
             "appTitleLabel"
         )
+
+        self.subtitle_label = QLabel(
+            "Không gian quản lý tập trung",
+            title_container,
+        )
+        self.subtitle_label.setObjectName("topbarSubtitleLabel")
+        title_layout.addWidget(self.app_title_label)
+        title_layout.addWidget(self.subtitle_label)
 
         user_container = QWidget(self)
         user_container.setObjectName(
@@ -132,13 +146,13 @@ class Topbar(QFrame):
         self.logout_button.setObjectName(
             "logoutButton"
         )
+        self.logout_button.setProperty("variant", "secondary")
+        self.logout_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.logout_button.clicked.connect(
             self.logout_requested.emit
         )
 
-        layout.addWidget(
-            self.app_title_label
-        )
+        layout.addWidget(title_container)
         layout.addStretch(1)
         layout.addWidget(
             user_container
@@ -146,3 +160,7 @@ class Topbar(QFrame):
         layout.addWidget(
             self.logout_button
         )
+
+    def set_page_title(self, title: str, subtitle: str | None = None) -> None:
+        self.app_title_label.setText(title)
+        self.subtitle_label.setText(subtitle or "Không gian quản lý tập trung")

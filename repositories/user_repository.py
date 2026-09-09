@@ -5,6 +5,10 @@ from models.enums import UserRole
 
 
 class UserRepository:
+    INITIAL_ADMIN_BOOTSTRAP_LOCK_RESOURCE = (
+        "student_support_system.initial_admin_bootstrap"
+    )
+
     def create(
         self,
         connection: pyodbc.Connection,
@@ -371,6 +375,28 @@ class UserRepository:
             """,
             UserRole.ADMIN.value,
             1,
+        ).fetchone()
+        return int(row[0])
+
+    def acquire_initial_admin_bootstrap_lock(
+        self,
+        connection: pyodbc.Connection,
+        lock_timeout_ms: int = 15_000,
+    ) -> int:
+        """Acquire the transaction-scoped SQL Server bootstrap lock."""
+        row = connection.cursor().execute(
+            """
+            SET NOCOUNT ON;
+            DECLARE @lock_result int;
+            EXEC @lock_result = sys.sp_getapplock
+                @Resource = ?,
+                @LockMode = 'Exclusive',
+                @LockOwner = 'Transaction',
+                @LockTimeout = ?;
+            SELECT @lock_result;
+            """,
+            self.INITIAL_ADMIN_BOOTSTRAP_LOCK_RESOURCE,
+            lock_timeout_ms,
         ).fetchone()
         return int(row[0])
 

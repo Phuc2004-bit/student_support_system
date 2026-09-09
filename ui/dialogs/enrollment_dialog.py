@@ -8,12 +8,15 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QFormLayout,
     QLabel,
     QMessageBox,
     QVBoxLayout,
     QWidget,
 )
+
+from ui.theme import dialog_stylesheet
 
 
 class EnrollmentDialog(QDialog):
@@ -53,14 +56,18 @@ class EnrollmentDialog(QDialog):
             if mode == self.MODE_TRANSFER
             else "Xếp lớp"
         )
+        self.setObjectName("enrollmentDialog")
         self.setModal(True)
-        self.resize(460, 260)
+        self.resize(520, 360)
 
         self._build_ui()
+        self.setStyleSheet(dialog_stylesheet())
         self._connect_signals()
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(28, 24, 28, 24)
+        root.setSpacing(14)
 
         self.title_label = QLabel(
             "Chọn lớp mới cho học sinh"
@@ -68,9 +75,28 @@ class EnrollmentDialog(QDialog):
             else "Xếp lớp hiện tại cho học sinh",
             self,
         )
+        self.title_label.setObjectName("dialogTitle")
+        self.title_label.setProperty("dialogTitle", True)
         root.addWidget(self.title_label)
 
-        form = QFormLayout()
+        self.subtitle_label = QLabel(
+            "Chọn đúng năm học và lớp trước khi xác nhận.",
+            self,
+        )
+        self.subtitle_label.setObjectName("dialogSubtitle")
+        self.subtitle_label.setProperty("dialogSubtitle", True)
+        root.addWidget(self.subtitle_label)
+
+        self.form_card = QFrame(self)
+        self.form_card.setObjectName("dialogCard")
+        self.form_card.setProperty("dialogCard", True)
+        form = QFormLayout(self.form_card)
+        form.setContentsMargins(20, 18, 20, 18)
+        form.setHorizontalSpacing(18)
+        form.setVerticalSpacing(14)
+        form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
 
         self.school_year_combo = QComboBox(self)
         self.class_combo = QComboBox(self)
@@ -89,7 +115,7 @@ class EnrollmentDialog(QDialog):
             self.action_date_input,
         )
 
-        root.addLayout(form)
+        root.addWidget(self.form_card, 1)
 
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -109,6 +135,9 @@ class EnrollmentDialog(QDialog):
             else "Xếp lớp"
         )
         self.cancel_button.setText("Hủy")
+        self.save_button.setObjectName("primaryDialogButton")
+        self.save_button.setProperty("variant", "primary")
+        self.cancel_button.setProperty("variant", "secondary")
 
         root.addWidget(self.button_box)
 

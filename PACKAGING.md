@@ -2,7 +2,7 @@
 
 ## Release recommendation
 
-Use a PyInstaller **onedir** build for V1.0. PySide6, matplotlib, pyodbc and
+Use a PyInstaller **onedir** build for V1.1. PySide6, matplotlib, pyodbc and
 bcrypt include native components; onedir gives predictable startup, makes Qt
 plugins and DLLs easier to inspect, and avoids onefile temporary extraction.
 
@@ -16,7 +16,7 @@ dist/
     HUONG_DAN.txt
 ```
 
-Product name: `Student Support System`; version: `1.0.0`; executable:
+Product name: `Student Support System`; version: `1.1.0`; executable:
 `StudentSupportSystem.exe`. The project currently has no `.ico` file, so a real
 Windows application icon remains an input for a later packaging step.
 

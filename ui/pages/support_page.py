@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
@@ -43,6 +44,7 @@ from ui.widgets.support_filter_widget import (
     SupportFilterSelection,
     SupportFilterWidget,
 )
+from ui.theme import status_badge_colors, support_page_stylesheet
 
 
 class SupportPage(QWidget):
@@ -68,7 +70,7 @@ class SupportPage(QWidget):
     )
 
     EMPTY_MESSAGE = (
-        "Không có học sinh cần bổ trợ phù hợp bộ lọc."
+        "Chưa có học sinh cần bổ trợ theo bộ lọc hiện tại."
     )
 
     def __init__(
@@ -118,6 +120,7 @@ class SupportPage(QWidget):
         self._load_state = self.STATE_IDLE
         self.setObjectName("supportPage")
         self._build_ui()
+        self.setStyleSheet(support_page_stylesheet())
         self._connect_signals()
         apply_action_permission(
             self.export_button,
@@ -134,33 +137,50 @@ class SupportPage(QWidget):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 20, 24, 24)
-        root.setSpacing(16)
+        root.setContentsMargins(20, 16, 20, 20)
+        root.setSpacing(12)
 
         heading = QHBoxLayout()
         titles = QVBoxLayout()
         self.title_label = QLabel("Bổ trợ học tập", self)
         self.subtitle_label = QLabel(
-            "Theo dõi danh sách học sinh cần bổ trợ.",
+            "Theo dõi tiến trình từ phát hiện đến đánh giá kết quả.",
             self,
         )
+        self.title_label.setObjectName("supportPageTitle")
+        self.subtitle_label.setObjectName("supportPageSubtitle")
+        # MainWindow already provides the page title and subtitle. Keep these
+        # labels for the standalone-page contract without duplicating headings.
+        self.title_label.setVisible(False)
+        self.subtitle_label.setVisible(False)
         titles.addWidget(self.title_label)
         titles.addWidget(self.subtitle_label)
         heading.addLayout(titles)
         heading.addStretch(1)
         self.refresh_button = QPushButton("Làm mới", self)
+        self.refresh_button.setObjectName("supportRefreshButton")
         self.export_button = QToolButton(self)
         self.export_button.setText("Xuất Excel")
         self.export_button.setObjectName("exportSupportExcelButton")
+        self.export_button.setProperty("variant", "primary")
         heading.addWidget(self.export_button)
         heading.addWidget(self.refresh_button)
         root.addLayout(heading)
 
+        self.filter_frame = QFrame(self)
+        self.filter_frame.setObjectName("supportFilterCard")
+        filter_layout = QVBoxLayout(self.filter_frame)
+        filter_layout.setContentsMargins(16, 14, 16, 16)
+        filter_layout.setSpacing(10)
+        self.filter_caption = QLabel("BỘ LỌC HỒ SƠ", self.filter_frame)
+        self.filter_caption.setObjectName("supportFilterCaption")
+        filter_layout.addWidget(self.filter_caption)
         self.filter_widget = SupportFilterWidget(
             academic_service=self.academic_service,
-            parent=self,
+            parent=self.filter_frame,
         )
-        root.addWidget(self.filter_widget)
+        filter_layout.addWidget(self.filter_widget)
+        root.addWidget(self.filter_frame)
 
         self.school_year_combo = self.filter_widget.school_year_combo
         self.grade_combo = self.filter_widget.grade_combo
@@ -169,16 +189,45 @@ class SupportPage(QWidget):
         self.status_combo = self.filter_widget.status_combo
 
         self.state_label = QLabel(self)
+        self.state_label.setObjectName("supportStateLabel")
         self.state_label.setWordWrap(True)
         root.addWidget(self.state_label)
 
         self.table_frame = QFrame(self)
         self.table_frame.setObjectName("supportTableFrame")
         table_layout = QVBoxLayout(self.table_frame)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
 
-        self.empty_label = QLabel(self.EMPTY_MESSAGE, self.table_frame)
+        table_header = QHBoxLayout()
+        table_header.setContentsMargins(16, 12, 16, 10)
+        self.table_caption = QLabel("HỒ SƠ BỔ TRỢ", self.table_frame)
+        self.table_caption.setObjectName("supportTableCaption")
+        table_header.addWidget(self.table_caption)
+        table_header.addStretch(1)
+        self.count_label = QLabel("0 hồ sơ bổ trợ", self.table_frame)
+        self.count_label.setObjectName("supportCountLabel")
+        table_header.addWidget(self.count_label)
+        table_layout.addLayout(table_header)
+
+        self.empty_container = QWidget(self.table_frame)
+        empty_layout = QVBoxLayout(self.empty_container)
+        empty_layout.setContentsMargins(24, 56, 24, 56)
+        self.empty_title_label = QLabel(
+            "Chưa có hồ sơ phù hợp",
+            self.empty_container,
+        )
+        self.empty_title_label.setObjectName("supportEmptyTitle")
+        self.empty_title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_label = QLabel(self.EMPTY_MESSAGE, self.empty_container)
+        self.empty_label.setObjectName("supportEmptyDescription")
+        self.empty_label.setWordWrap(True)
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        table_layout.addWidget(self.empty_label)
+        empty_layout.addStretch(1)
+        empty_layout.addWidget(self.empty_title_label)
+        empty_layout.addWidget(self.empty_label)
+        empty_layout.addStretch(1)
+        table_layout.addWidget(self.empty_container, 1)
 
         self.table = QTableWidget(self.table_frame)
         self.table.setObjectName("supportTable")
@@ -194,17 +243,18 @@ class SupportPage(QWidget):
             QAbstractItemView.SelectionMode.SingleSelection
         )
         self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
+        self.table.setWordWrap(False)
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(40)
         header = self.table.horizontalHeader()
+        header.setMinimumHeight(42)
         header.setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         table_layout.addWidget(self.table, 1)
         root.addWidget(self.table_frame, 1)
-
-        self.count_label = QLabel("0 hồ sơ bổ trợ", self)
-        root.addWidget(self.count_label)
 
         self._show_empty(self.EMPTY_MESSAGE)
 
@@ -289,6 +339,20 @@ class SupportPage(QWidget):
                         Qt.ItemDataRole.UserRole,
                         item.intervention_id,
                     )
+                if column in (0, 3, 4, 6, 7, 8):
+                    table_item.setTextAlignment(
+                        Qt.AlignmentFlag.AlignCenter
+                    )
+                if column == 8:
+                    foreground, background = status_badge_colors(
+                        item.status
+                    )
+                    table_item.setForeground(QColor(foreground))
+                    table_item.setBackground(QColor(background))
+                    table_item.setData(
+                        Qt.ItemDataRole.UserRole + 1,
+                        str(getattr(item.status, "value", item.status)),
+                    )
                 self.table.setItem(row_index, column, table_item)
 
         self.count_label.setText(
@@ -299,7 +363,7 @@ class SupportPage(QWidget):
             self.state_label.setText(
                 f"Đã tải {len(self._items)} hồ sơ bổ trợ."
             )
-            self.empty_label.setVisible(False)
+            self.empty_container.setVisible(False)
             self.table.setVisible(True)
             self.refresh_button.setEnabled(True)
         else:
@@ -472,6 +536,7 @@ class SupportPage(QWidget):
         self._items = ()
         self.table.setRowCount(0)
         self.table.setVisible(False)
+        self.empty_container.setVisible(True)
         self.empty_label.setText(message)
         self.empty_label.setVisible(True)
         self.state_label.setText(message)
