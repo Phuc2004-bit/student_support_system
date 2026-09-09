@@ -45,11 +45,8 @@ def main_window_stylesheet() -> str:
         border-right: 1px solid {BORDER};
     }}
     QLabel#sidebarBrandMark {{
-        color: {SIDEBAR_BACKGROUND};
-        background-color: {PRIMARY};
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 700;
+        background-color: transparent;
+        border: none;
         min-width: 38px;
         min-height: 38px;
         max-width: 38px;
@@ -1342,15 +1339,12 @@ def login_dialog_stylesheet() -> str:
         border-radius: 14px;
     }}
     QDialog#loginDialog QLabel#loginBrandMark {{
-        color: {SIDEBAR_BACKGROUND};
-        background-color: {PRIMARY};
-        border-radius: 22px;
+        background-color: transparent;
+        border: none;
         min-width: 44px;
         min-height: 44px;
         max-width: 44px;
         max-height: 44px;
-        font-size: 15px;
-        font-weight: 700;
     }}
     QDialog#loginDialog QLabel#loginTitleLabel {{
         color: {TEXT_PRIMARY}; font-size: 19px; font-weight: 700;

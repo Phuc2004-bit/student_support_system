@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from app_context import AppContext
 from bootstrap import build_app_context
 from config.logging_config import setup_logging
+from ui.branding import configure_application_icon
 from ui.dialogs.login_dialog import LoginDialog
 from ui.main_window import MainWindow
 
@@ -120,6 +121,7 @@ def run_application_flow(
 def main() -> int:
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    configure_application_icon(app)
 
     context = build_app_context()
     app.setProperty(
