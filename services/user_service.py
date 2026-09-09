@@ -89,6 +89,68 @@ class UserService:
         except pyodbc.Error as exc:
             raise DatabaseError("Không thể tạo người dùng.") from exc
 
+    def create_initial_admin(
+        self,
+        username: str,
+        password: str,
+        full_name: str,
+        email: str | None = None,
+        phone: str | None = None,
+    ) -> User:
+        """Create the first active ADMIN account atomically.
+
+        This bootstrap-only API refuses to create an account when an active
+        ADMIN already exists. Validation, password hashing, and the transaction
+        remain owned by the service layer.
+        """
+
+        username = self._normalize_username(username)
+        full_name = self._normalize_full_name(full_name)
+        email = self._normalize_optional(email)
+        phone = self._normalize_optional(phone)
+
+        self._validate_password(password)
+        self._validate_email(email)
+        self._validate_phone(phone)
+
+        try:
+            with self.db.transaction() as connection:
+                lock_result = (
+                    self.user_repository
+                    .acquire_initial_admin_bootstrap_lock(connection)
+                )
+                if lock_result < 0:
+                    raise DatabaseError(
+                        "Không thể khóa thao tác tạo ADMIN khởi tạo."
+                    )
+
+                existing = self.user_repository.get_by_username(
+                    connection,
+                    username,
+                )
+                if existing is not None:
+                    raise DuplicateError("Tên đăng nhập đã tồn tại.")
+                if self.user_repository.count_active_admins(connection) > 0:
+                    raise BusinessRuleError(
+                        "ADMIN khởi tạo đã tồn tại."
+                    )
+
+                password_hash = self._hash_password(password)
+                return self.user_repository.create(
+                    connection=connection,
+                    username=username,
+                    password_hash=password_hash,
+                    full_name=full_name,
+                    role=UserRole.ADMIN,
+                    email=email,
+                    phone=phone,
+                    is_active=True,
+                )
+        except pyodbc.IntegrityError as exc:
+            raise DuplicateError("Tên đăng nhập đã tồn tại.") from exc
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể tạo ADMIN khởi tạo.") from exc
+
     # =====================================================
     # READ
     # =====================================================
