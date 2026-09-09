@@ -18,7 +18,7 @@ class Settings:
 
     APP_VERSION = os.getenv(
         "APP_VERSION",
-        "1.0.0",
+        "1.1.0",
     )
 
     APP_ENV = os.getenv(

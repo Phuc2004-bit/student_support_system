@@ -169,10 +169,12 @@ def _run_functional_smoke(
     assert payload["fixture_prefix"] == PREFIX
     assert payload["db_name"] == "student_support_db_test"
     assert payload["configured_db"] == "student_support_db_test"
+    assert payload["app_version"] == "1.1.0"
     assert payload["residual_counts"] == [0, 0, 0, 0, 0, 0]
     excluded = {
         "env_file", "executable", "working_directory", "runtime_paths",
-        "fixture_prefix", "db_name", "configured_db", "excel_files",
+        "fixture_prefix", "db_name", "configured_db", "app_version",
+        "excel_files",
         "residual_counts",
     }
     assert all(value is True for key, value in payload.items() if key not in excluded)

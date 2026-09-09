@@ -255,4 +255,3 @@ def test_scores_presentation_contains_no_threshold_transaction_or_data_layer():
     assert "REPOSITORY" not in source
     assert "SELECT " not in source
     assert "INSERT " not in source
-
