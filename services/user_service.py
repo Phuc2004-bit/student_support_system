@@ -587,6 +587,46 @@ class UserService:
 
             return updated
 
+    def reset_admin_password(
+        self,
+        username: str,
+        new_password: str,
+    ) -> User:
+        """Reset one existing ADMIN password in a service-owned transaction.
+
+        This deployment-maintenance API intentionally changes only the stored
+        password hash. The ADMIN role is checked again inside the same
+        transaction so a script-side preflight check cannot become stale.
+        """
+
+        username = self._normalize_username(username)
+        self._validate_password(new_password)
+
+        try:
+            with self.db.transaction() as connection:
+                existing = self.user_repository.get_by_username(
+                    connection,
+                    username,
+                )
+                if existing is None:
+                    raise ValidationError("Không tìm thấy người dùng.")
+                if existing.role is not UserRole.ADMIN:
+                    raise BusinessRuleError(
+                        "Chỉ có thể reset mật khẩu cho tài khoản ADMIN."
+                    )
+
+                password_hash = self._hash_password(new_password)
+                updated = self.user_repository.update_password_hash(
+                    connection,
+                    existing.user_id,
+                    password_hash,
+                )
+                if updated is None:
+                    raise ValidationError("Không thể cập nhật mật khẩu ADMIN.")
+                return updated
+        except pyodbc.Error as exc:
+            raise DatabaseError("Không thể reset mật khẩu ADMIN.") from exc
+
     # =====================================================
     # PASSWORD UTILITIES
     # =====================================================
