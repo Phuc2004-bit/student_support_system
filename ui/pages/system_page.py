@@ -1,7 +1,9 @@
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -22,6 +24,7 @@ from services.permission_service import PermissionService
 from ui.dialogs.change_password_dialog import ChangePasswordDialog
 from ui.dialogs.profile_dialog import ProfileDialog
 from ui.dialogs.user_dialog import UserDialog
+from ui.theme import catalog_system_stylesheet, status_badge_colors
 
 
 class SystemPage(QWidget):
@@ -47,14 +50,18 @@ class SystemPage(QWidget):
         self.setObjectName("systemPage")
         self._build_ui()
         self._connect_signals()
+        self.setStyleSheet(catalog_system_stylesheet())
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 24)
         root.setSpacing(16)
         self.title_label = QLabel("Hệ thống", self)
-        self.subtitle_label = QLabel("Quản lý tài khoản người dùng.", self)
+        self.title_label.setObjectName("systemTitleLabel")
+        self.subtitle_label = QLabel("Hồ sơ cá nhân và quản lý tài khoản người dùng.", self)
+        self.subtitle_label.setObjectName("systemSubtitleLabel")
         self.state_label = QLabel(self)
+        self.state_label.setObjectName("systemStateLabel")
         self.state_label.setWordWrap(True)
         root.addWidget(self.title_label)
         root.addWidget(self.subtitle_label)
@@ -66,12 +73,36 @@ class SystemPage(QWidget):
         self._build_users_tab()
         if self.session is not None:
             self.tabs.addTab(self.profile_tab, "Tài khoản của tôi")
+        else:
+            self.profile_tab.hide()
         if self.session is None or self._can_manage_users():
             self.tabs.addTab(self.users_tab, "Người dùng")
+        else:
+            self.users_tab.hide()
         root.addWidget(self.tabs, 1)
 
     def _build_profile_tab(self) -> None:
         layout = QVBoxLayout(self.profile_tab)
+        layout.setContentsMargins(18, 18, 18, 18)
+        self.profile_card = QFrame(self.profile_tab)
+        self.profile_card.setObjectName("profileCard")
+        card_layout = QVBoxLayout(self.profile_card)
+        card_layout.setContentsMargins(22, 20, 22, 20)
+        card_layout.setSpacing(16)
+        identity = QHBoxLayout()
+        self.profile_avatar_label = QLabel("--", self.profile_card)
+        self.profile_avatar_label.setObjectName("profileAvatarLabel")
+        self.profile_avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        identity_text = QVBoxLayout()
+        self.profile_name_label = QLabel("Hồ sơ tài khoản", self.profile_card)
+        self.profile_name_label.setObjectName("profileNameLabel")
+        self.profile_meta_label = QLabel("Thông tin đăng nhập an toàn", self.profile_card)
+        self.profile_meta_label.setObjectName("profileMetaLabel")
+        identity_text.addWidget(self.profile_name_label)
+        identity_text.addWidget(self.profile_meta_label)
+        identity.addWidget(self.profile_avatar_label)
+        identity.addLayout(identity_text, 1)
+        card_layout.addLayout(identity)
         form = QFormLayout()
         self.profile_username_value = QLineEdit(self.profile_tab)
         self.profile_username_value.setReadOnly(True)
@@ -91,25 +122,29 @@ class SystemPage(QWidget):
         form.addRow("Email", self.profile_email_value)
         form.addRow("Điện thoại", self.profile_phone_value)
         form.addRow("Trạng thái", self.profile_active_value)
-        layout.addLayout(form)
+        card_layout.addLayout(form)
         actions = QHBoxLayout()
         self.edit_profile_button = QPushButton("Cập nhật hồ sơ", self.profile_tab)
         self.change_password_button = QPushButton("Đổi mật khẩu", self.profile_tab)
         self.refresh_profile_button = QPushButton("Làm mới", self.profile_tab)
+        self.edit_profile_button.setProperty("variant", "primary")
         actions.addWidget(self.edit_profile_button)
         actions.addWidget(self.change_password_button)
         actions.addWidget(self.refresh_profile_button)
         actions.addStretch(1)
-        layout.addLayout(actions)
+        card_layout.addLayout(actions)
+        layout.addWidget(self.profile_card)
         layout.addStretch(1)
 
     def _build_users_tab(self) -> None:
         layout = QVBoxLayout(self.users_tab)
+        layout.setContentsMargins(18, 18, 18, 18)
         toolbar = QHBoxLayout()
         self.search_input = QLineEdit(self.users_tab)
         self.search_input.setPlaceholderText("Tìm theo tên đăng nhập hoặc họ tên")
         self.search_button = QPushButton("Tìm", self.users_tab)
         self.add_button = QPushButton("Thêm người dùng", self.users_tab)
+        self.add_button.setProperty("variant", "primary")
         self.edit_button = QPushButton("Sửa", self.users_tab)
         self.toggle_button = QPushButton("Vô hiệu/Kích hoạt", self.users_tab)
         self.refresh_button = QPushButton("Làm mới", self.users_tab)
@@ -137,7 +172,9 @@ class SystemPage(QWidget):
         self.user_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.user_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.user_table.setAlternatingRowColors(True)
+        self.user_table.setShowGrid(False)
         self.user_table.verticalHeader().setVisible(False)
+        self.user_table.verticalHeader().setDefaultSectionSize(40)
         self.user_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
         )
@@ -145,6 +182,11 @@ class SystemPage(QWidget):
             1,
             QHeaderView.ResizeMode.Stretch,
         )
+        self.users_empty_label = QLabel("Chưa có tài khoản phù hợp.", self.users_tab)
+        self.users_empty_label.setObjectName("systemEmptyLabel")
+        self.users_empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.users_empty_label.setMinimumHeight(42)
+        layout.addWidget(self.users_empty_label)
         layout.addWidget(self.user_table, 1)
 
     def _connect_signals(self) -> None:
@@ -204,6 +246,11 @@ class SystemPage(QWidget):
             "Đang hoạt động" if profile and profile.is_active else (
                 "Ngừng hoạt động" if profile else ""
             )
+        )
+        self.profile_avatar_label.setText(self._initials(profile.full_name) if profile else "--")
+        self.profile_name_label.setText(profile.full_name if profile else "Hồ sơ tài khoản")
+        self.profile_meta_label.setText(
+            f"{profile.username} · {role_labels[profile.role]}" if profile else "Thông tin đăng nhập an toàn"
         )
         self.edit_profile_button.setEnabled(profile is not None)
         self.change_password_button.setEnabled(profile is not None)
@@ -305,6 +352,19 @@ class SystemPage(QWidget):
                 if column == 0:
                     item.setData(Qt.ItemDataRole.UserRole, user.user_id)
                 self.user_table.setItem(row, column, item)
+            status_item = self.user_table.item(row, 5)
+            foreground, background = status_badge_colors(
+                "ACTIVE" if user.is_active else "INACTIVE"
+            )
+            status_item.setForeground(QColor(foreground))
+            status_item.setBackground(QColor(background))
+            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.users_empty_label.setVisible(not self.users)
+
+    @staticmethod
+    def _initials(full_name: str) -> str:
+        parts = [part for part in full_name.strip().split() if part]
+        return "".join(part[0].upper() for part in parts[-2:]) or "--"
 
     def create_user(self, *_args) -> bool:
         dialog = self.user_dialog_factory(None, self)

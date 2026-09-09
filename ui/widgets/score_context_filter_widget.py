@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
-    QFormLayout,
-    QHBoxLayout,
+    QGridLayout,
+    QLabel,
     QWidget,
 )
 
@@ -42,10 +42,13 @@ class ScoreContextFilterWidget(QWidget):
         super().__init__(parent)
         self.academic_service = academic_service
         self._grades: list[tuple] = []
+        self._assessments_by_id: dict[int, object] = {}
+        self.setObjectName("scoreContextFilterWidget")
 
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(12)
+        grid = QGridLayout(self)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(6)
 
         self.school_year_combo = QComboBox(self)
         self.grade_combo = QComboBox(self)
@@ -60,11 +63,22 @@ class ScoreContextFilterWidget(QWidget):
             ("Môn học", self.subject_combo),
             ("Bài đánh giá", self.assessment_combo),
         )
-        for label, combo in controls:
-            form = QFormLayout()
-            form.setContentsMargins(0, 0, 0, 0)
-            form.addRow(label, combo)
-            row.addLayout(form, 1)
+        for column, (label, combo) in enumerate(controls):
+            label_widget = QLabel(label, self)
+            label_widget.setProperty("scoreFilterLabel", True)
+            combo.setObjectName(
+                (
+                    "schoolYearScoreCombo",
+                    "gradeScoreCombo",
+                    "classScoreCombo",
+                    "subjectScoreCombo",
+                    "assessmentScoreCombo",
+                )[column]
+            )
+            combo.setMinimumWidth(145)
+            grid.addWidget(label_widget, 0, column)
+            grid.addWidget(combo, 1, column)
+            grid.setColumnStretch(column, 1)
 
         self.school_year_combo.currentIndexChanged.connect(
             self._year_changed
@@ -113,8 +127,16 @@ class ScoreContextFilterWidget(QWidget):
             assessment_id=self.assessment_combo.currentData(),
         )
 
+    def selected_assessment(self):
+        """Return already-loaded assessment metadata for presentation only."""
+
+        return self._assessments_by_id.get(
+            self.assessment_combo.currentData()
+        )
+
     def _reset_all(self) -> None:
         self._grades = []
+        self._assessments_by_id = {}
         self._reset_combo(
             self.school_year_combo,
             "Chọn năm học",
@@ -233,6 +255,7 @@ class ScoreContextFilterWidget(QWidget):
         self.subject_combo.blockSignals(False)
 
     def _reload_assessments(self) -> None:
+        self._assessments_by_id = {}
         value = self.current_value()
         enabled = (
             value.school_year_id is not None
@@ -268,6 +291,7 @@ class ScoreContextFilterWidget(QWidget):
             ]
         self.assessment_combo.blockSignals(True)
         for assessment in assessments:
+            self._assessments_by_id[assessment.assessment_id] = assessment
             self.assessment_combo.addItem(
                 assessment.assessment_name,
                 assessment.assessment_id,

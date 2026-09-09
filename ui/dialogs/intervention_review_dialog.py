@@ -6,7 +6,9 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QTextEdit,
@@ -17,6 +19,7 @@ from models.dto import Intervention, InterventionDetail
 from models.enums import AssessmentStatus
 from services.assessment_contract import AssessmentReadServiceContract
 from services.support_contract import InterventionReviewServiceContract
+from ui.theme import support_dialog_stylesheet
 
 
 class InterventionReviewDialog(QDialog):
@@ -36,13 +39,29 @@ class InterventionReviewDialog(QDialog):
         self.reviewed_intervention: Intervention | None = None
         self.setObjectName("interventionReviewDialog")
         self.setWindowTitle("Đánh giá bổ trợ")
-        self.resize(520, 420)
+        self.resize(600, 530)
         self._build_ui()
+        self.setStyleSheet(support_dialog_stylesheet())
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        form = QFormLayout()
+        root.setContentsMargins(20, 18, 20, 18)
+        root.setSpacing(12)
 
+        title = QLabel("Đánh giá lại kết quả bổ trợ", self)
+        title.setProperty("dialogTitle", True)
+        root.addWidget(title)
+        subtitle = QLabel(
+            "Ghi nhận điểm đánh giá; kết quả hồ sơ do hệ thống xác định.",
+            self,
+        )
+        subtitle.setProperty("dialogSubtitle", True)
+        root.addWidget(subtitle)
+
+        context_card = QFrame(self)
+        context_card.setProperty("dialogCard", True)
+        context_layout = QHBoxLayout(context_card)
+        context_layout.setContentsMargins(16, 12, 16, 12)
         self.student_label = QLabel(
             f"{self.intervention.student_code} — "
             f"{self.intervention.full_name}",
@@ -53,11 +72,26 @@ class InterventionReviewDialog(QDialog):
             f"{self.intervention.subject_name}",
             self,
         )
+        context_text = QVBoxLayout()
+        context_text.addWidget(self.student_label)
+        context_text.addWidget(self.context_label)
+        context_layout.addLayout(context_text, 1)
         self.trigger_score_label = QLabel(
             str(self.intervention.trigger_score),
             self,
         )
         self.status_label = QLabel("Chờ đánh giá", self)
+        context_layout.addWidget(QLabel("Điểm phát hiện", context_card))
+        context_layout.addWidget(self.trigger_score_label)
+        context_layout.addWidget(self.status_label)
+        root.addWidget(context_card)
+
+        form_card = QFrame(self)
+        form_card.setProperty("dialogCard", True)
+        form = QFormLayout(form_card)
+        form.setContentsMargins(16, 16, 16, 16)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(12)
         self.assessment_combo = QComboBox(self)
         self.assessment_combo.addItem("Chọn bài đánh giá", None)
         self.score_input = QLineEdit(self)
@@ -69,15 +103,11 @@ class InterventionReviewDialog(QDialog):
         self.notes_input = QTextEdit(self)
         self.notes_input.setPlaceholderText("Ghi chú (không bắt buộc)")
 
-        form.addRow("Học sinh", self.student_label)
-        form.addRow("Lớp / Môn", self.context_label)
-        form.addRow("Điểm phát hiện", self.trigger_score_label)
-        form.addRow("Trạng thái", self.status_label)
         form.addRow("Bài đánh giá", self.assessment_combo)
         form.addRow("Điểm đánh giá", self.score_input)
         form.addRow("Ngày đánh giá", self.review_date_input)
         form.addRow("Ghi chú", self.notes_input)
-        root.addLayout(form)
+        root.addWidget(form_card, 1)
 
         self.error_label = QLabel(self)
         self.error_label.setWordWrap(True)
@@ -91,6 +121,17 @@ class InterventionReviewDialog(QDialog):
         )
         self.buttons.accepted.connect(self.save_review)
         self.buttons.rejected.connect(self.reject)
+        save_button = self.buttons.button(
+            QDialogButtonBox.StandardButton.Save
+        )
+        cancel_button = self.buttons.button(
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        if save_button is not None:
+            save_button.setText("Lưu đánh giá")
+            save_button.setProperty("variant", "primary")
+        if cancel_button is not None:
+            cancel_button.setText("Hủy")
         root.addWidget(self.buttons)
 
     def load_assessments(self) -> bool:

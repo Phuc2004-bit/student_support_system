@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QFormLayout,
     QGroupBox,
     QHeaderView,
+    QHBoxLayout,
     QLabel,
     QTableWidget,
     QTableWidgetItem,
@@ -38,6 +40,7 @@ from ui.dialogs.intervention_waiting_review_confirmation import (
     confirm_ready_for_review,
 )
 from ui.widgets.dashboard_charts import status_label
+from ui.theme import support_dialog_stylesheet
 
 
 def review_result_label(result) -> str:
@@ -99,11 +102,69 @@ class InterventionDetailDialog(QDialog):
         self.detail: InterventionDetail | None = None
         self.setObjectName("interventionDetailDialog")
         self.setWindowTitle("Chi tiết hồ sơ bổ trợ")
-        self.resize(780, 680)
+        self.resize(920, 720)
         self._build_ui()
+        self.setStyleSheet(support_dialog_stylesheet())
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(20, 18, 20, 18)
+        root.setSpacing(12)
+
+        self.dialog_title_label = QLabel("Chi tiết hồ sơ bổ trợ", self)
+        self.dialog_title_label.setProperty("dialogTitle", True)
+        root.addWidget(self.dialog_title_label)
+
+        self.identity_card = QFrame(self)
+        self.identity_card.setObjectName("interventionIdentityCard")
+        identity_layout = QHBoxLayout(self.identity_card)
+        identity_layout.setContentsMargins(16, 12, 16, 12)
+        identity_text = QVBoxLayout()
+        self.identity_name_label = QLabel("Chưa tải hồ sơ", self.identity_card)
+        self.identity_name_label.setObjectName("interventionStudentName")
+        self.identity_context_label = QLabel("—", self.identity_card)
+        self.identity_context_label.setObjectName("interventionStudentContext")
+        identity_text.addWidget(self.identity_name_label)
+        identity_text.addWidget(self.identity_context_label)
+        identity_layout.addLayout(identity_text, 1)
+        self.status_value_label = QLabel("—", self.identity_card)
+        self.status_value_label.setObjectName("interventionStatusBadge")
+        self.status_value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        identity_layout.addWidget(self.status_value_label)
+        root.addWidget(self.identity_card)
+
+        self.workflow_card = QFrame(self)
+        self.workflow_card.setObjectName("interventionWorkflowCard")
+        workflow_layout = QVBoxLayout(self.workflow_card)
+        workflow_layout.setContentsMargins(14, 12, 14, 12)
+        workflow_layout.setSpacing(8)
+        workflow_header = QLabel("TIẾN TRÌNH BỔ TRỢ", self.workflow_card)
+        workflow_header.setProperty("dialogSubtitle", True)
+        workflow_layout.addWidget(workflow_header)
+        workflow_steps_layout = QHBoxLayout()
+        workflow_steps_layout.setSpacing(6)
+        self.workflow_step_labels = []
+        for text in (
+            "Mới phát hiện",
+            "Đã lập kế hoạch",
+            "Đang bổ trợ",
+            "Chờ đánh giá",
+            "Kết quả",
+        ):
+            label = QLabel(text, self.workflow_card)
+            label.setProperty("workflowStep", True)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            workflow_steps_layout.addWidget(label, 1)
+            self.workflow_step_labels.append(label)
+        workflow_layout.addLayout(workflow_steps_layout)
+        self.workflow_message_label = QLabel(
+            "Chọn hồ sơ để xem tiến trình.", self.workflow_card
+        )
+        self.workflow_message_label.setObjectName(
+            "interventionWorkflowMessage"
+        )
+        workflow_layout.addWidget(self.workflow_message_label)
+        root.addWidget(self.workflow_card)
 
         self.error_label = QLabel(self)
         self.error_label.setObjectName("interventionDetailError")
@@ -123,7 +184,9 @@ class InterventionDetailDialog(QDialog):
         student_form.addRow("Khối", self.grade_label)
         student_form.addRow("Lớp", self.class_label)
         student_form.addRow("Năm học", self.school_year_label)
-        root.addWidget(student_group)
+        context_row = QHBoxLayout()
+        context_row.setSpacing(12)
+        context_row.addWidget(student_group, 1)
 
         detection_group = QGroupBox("Môn học và phát hiện", self)
         detection_form = QFormLayout(detection_group)
@@ -144,12 +207,12 @@ class InterventionDetailDialog(QDialog):
             "Ngày phát hiện",
             self.detected_date_label,
         )
-        root.addWidget(detection_group)
+        context_row.addWidget(detection_group, 1)
+        root.addLayout(context_row)
 
         support_group = QGroupBox("Ca bổ trợ", self)
         support_form = QFormLayout(support_group)
         self.intervention_id_label = QLabel("—", support_group)
-        self.status_value_label = QLabel("—", support_group)
         self.start_date_label = QLabel("—", support_group)
         self.responsible_user_label = QLabel("—", support_group)
         self.support_method_label = QLabel("—", support_group)
@@ -158,7 +221,6 @@ class InterventionDetailDialog(QDialog):
         self.created_at_label = QLabel("—", support_group)
         self.updated_at_label = QLabel("—", support_group)
         support_form.addRow("Mã hồ sơ", self.intervention_id_label)
-        support_form.addRow("Trạng thái", self.status_value_label)
         support_form.addRow("Ngày bắt đầu", self.start_date_label)
         support_form.addRow(
             "Người phụ trách",
@@ -170,12 +232,18 @@ class InterventionDetailDialog(QDialog):
         support_form.addRow("Cập nhật lần cuối", self.updated_at_label)
         root.addWidget(support_group)
 
+        self.outcome_message_label = QLabel(self)
+        self.outcome_message_label.setWordWrap(True)
+        self.outcome_message_label.setVisible(False)
+        root.addWidget(self.outcome_message_label)
+
         review_group = QGroupBox("Lịch sử đánh giá", self)
         review_layout = QVBoxLayout(review_group)
         self.review_empty_label = QLabel(
             "Chưa có lịch sử đánh giá.",
             review_group,
         )
+        self.review_empty_label.setObjectName("interventionReviewEmpty")
         review_layout.addWidget(self.review_empty_label)
         self.review_table = QTableWidget(review_group)
         self.review_table.setObjectName("interventionReviewTable")
@@ -188,6 +256,10 @@ class InterventionDetailDialog(QDialog):
             QAbstractItemView.SelectionMode.NoSelection
         )
         self.review_table.verticalHeader().setVisible(False)
+        self.review_table.verticalHeader().setDefaultSectionSize(38)
+        self.review_table.setShowGrid(False)
+        self.review_table.setAlternatingRowColors(True)
+        self.review_table.horizontalHeader().setMinimumHeight(40)
         self.review_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
         )
@@ -231,6 +303,11 @@ class InterventionDetailDialog(QDialog):
         self.continue_button.setVisible(False)
         self.continue_button.clicked.connect(self.resume_support)
         self.close_buttons.rejected.connect(self.reject)
+        close_button = self.close_buttons.button(
+            QDialogButtonBox.StandardButton.Close
+        )
+        if close_button is not None:
+            close_button.setText("Đóng")
         root.addWidget(self.close_buttons)
 
     def load_detail(self) -> InterventionDetail | None:
@@ -253,6 +330,12 @@ class InterventionDetailDialog(QDialog):
         return detail
 
     def _render_detail(self, detail: InterventionDetail) -> None:
+        self.identity_name_label.setText(detail.full_name)
+        identity_context = [detail.student_code, detail.class_name]
+        if detail.school_year_name:
+            identity_context.append(detail.school_year_name)
+        identity_context.append(detail.subject_name)
+        self.identity_context_label.setText("  •  ".join(identity_context))
         self.student_code_label.setText(detail.student_code)
         self.full_name_label.setText(detail.full_name)
         self.grade_label.setText(
@@ -275,6 +358,10 @@ class InterventionDetailDialog(QDialog):
         self.intervention_id_label.setText(str(detail.intervention_id))
         status = getattr(detail.status, "value", detail.status)
         self.status_value_label.setText(status_label(str(status)))
+        self.status_value_label.setProperty("interventionStatus", str(status))
+        self.status_value_label.style().unpolish(self.status_value_label)
+        self.status_value_label.style().polish(self.status_value_label)
+        self._render_workflow(str(status))
         self.start_date_label.setText(
             detail.start_date.strftime("%d/%m/%Y")
             if detail.start_date is not None
@@ -326,6 +413,79 @@ class InterventionDetailDialog(QDialog):
         )
         self.continue_button.setVisible(can_continue)
         self.continue_button.setEnabled(can_continue)
+        self._render_outcome_message(str(status))
+        for button in (
+            self.plan_button,
+            self.start_button,
+            self.waiting_review_button,
+            self.review_button,
+            self.continue_button,
+        ):
+            button.setProperty("variant", "primary")
+            button.style().unpolish(button)
+            button.style().polish(button)
+
+    def _render_workflow(self, status: str) -> None:
+        step_index = {
+            "DETECTED": 0,
+            "PLANNED": 1,
+            "IN_PROGRESS": 2,
+            "WAITING_REVIEW": 3,
+            "CONTINUE": 4,
+            "COMPLETED": 4,
+        }.get(status, 0)
+        for index, label in enumerate(self.workflow_step_labels):
+            state = "upcoming"
+            prefix = "○"
+            if index < step_index:
+                state = "done"
+                prefix = "✓"
+            elif index == step_index:
+                state = "current"
+                prefix = "●"
+            if status == "CONTINUE" and index == 4:
+                state = "attention"
+            elif status == "COMPLETED" and index == 4:
+                state = "complete"
+            base_text = (
+                "Mới phát hiện",
+                "Đã lập kế hoạch",
+                "Đang bổ trợ",
+                "Chờ đánh giá",
+                "Kết quả",
+            )[index]
+            label.setText(f"{prefix} {base_text}")
+            label.setProperty("workflowState", state)
+            label.style().unpolish(label)
+            label.style().polish(label)
+
+        self.workflow_message_label.setText({
+            "DETECTED": "Hồ sơ mới phát hiện, sẵn sàng lập kế hoạch.",
+            "PLANNED": "Kế hoạch đã được lưu, sẵn sàng bắt đầu bổ trợ.",
+            "IN_PROGRESS": "Học sinh đang trong quá trình bổ trợ.",
+            "WAITING_REVIEW": "Hồ sơ đang chờ đánh giá lại.",
+            "CONTINUE": "Cần tiếp tục bổ trợ.",
+            "COMPLETED": "Đã đạt ngưỡng qua quy trình đánh giá.",
+        }.get(status, "Trạng thái hồ sơ đã được cập nhật."))
+
+    def _render_outcome_message(self, status: str) -> None:
+        messages = {
+            "CONTINUE": (
+                "interventionContinueMessage",
+                "Kết quả đánh giá cho thấy học sinh cần tiếp tục bổ trợ.",
+            ),
+            "COMPLETED": (
+                "interventionCompletedMessage",
+                "Không còn thao tác bổ trợ. Hồ sơ đã đạt ngưỡng.",
+            ),
+        }
+        if status not in messages:
+            self.outcome_message_label.setVisible(False)
+            return
+        object_name, message = messages[status]
+        self.outcome_message_label.setObjectName(object_name)
+        self.outcome_message_label.setText(message)
+        self.outcome_message_label.setVisible(True)
 
     def open_plan_dialog(self) -> bool:
         if (

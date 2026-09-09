@@ -5,6 +5,7 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
+    QFrame,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from models.dto import UserSession
+from ui.theme import login_dialog_stylesheet
 
 
 class LoginDialog(QDialog):
@@ -34,23 +36,37 @@ class LoginDialog(QDialog):
         self.auth_service = auth_service
         self.user_session: UserSession | None = None
 
+        self.setObjectName("loginDialog")
         self.setWindowTitle("Đăng nhập")
         self.setModal(True)
-        self.setMinimumWidth(420)
+        self.setMinimumWidth(440)
 
         self._build_ui()
         self._connect_signals()
+        self.setStyleSheet(login_dialog_stylesheet())
 
     def _build_ui(self) -> None:
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(28, 24, 28, 24)
         root_layout.setSpacing(16)
 
-        title_label = QLabel("HỆ THỐNG HỖ TRỢ HỌC TẬP")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.brand_mark_label = QLabel("HT")
+        self.brand_mark_label.setObjectName("loginBrandMark")
+        self.brand_mark_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        subtitle_label = QLabel("Đăng nhập để tiếp tục")
-        subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label = QLabel("HỆ THỐNG HỖ TRỢ HỌC TẬP")
+        self.title_label.setObjectName("loginTitleLabel")
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.subtitle_label = QLabel("Đăng nhập để tiếp tục")
+        self.subtitle_label.setObjectName("loginSubtitleLabel")
+        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.form_card = QFrame(self)
+        self.form_card.setObjectName("loginCard")
+        card_layout = QVBoxLayout(self.form_card)
+        card_layout.setContentsMargins(20, 18, 20, 18)
+        card_layout.setSpacing(12)
 
         form_layout = QFormLayout()
         form_layout.setHorizontalSpacing(14)
@@ -81,16 +97,19 @@ class LoginDialog(QDialog):
 
         self.login_button = QPushButton("Đăng nhập")
         self.login_button.setObjectName("login_button")
+        self.login_button.setProperty("variant", "primary")
         self.login_button.setDefault(True)
         self.login_button.setAutoDefault(True)
 
         button_layout.addWidget(self.login_button)
 
-        root_layout.addWidget(title_label)
-        root_layout.addWidget(subtitle_label)
-        root_layout.addLayout(form_layout)
-        root_layout.addWidget(self.error_label)
-        root_layout.addLayout(button_layout)
+        root_layout.addWidget(self.brand_mark_label, 0, Qt.AlignmentFlag.AlignCenter)
+        root_layout.addWidget(self.title_label)
+        root_layout.addWidget(self.subtitle_label)
+        card_layout.addLayout(form_layout)
+        card_layout.addWidget(self.error_label)
+        card_layout.addLayout(button_layout)
+        root_layout.addWidget(self.form_card)
 
         self.username_input.setFocus()
 

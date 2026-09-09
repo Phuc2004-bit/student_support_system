@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
-    QFormLayout,
-    QHBoxLayout,
+    QGridLayout,
+    QLabel,
     QWidget,
 )
 
@@ -29,12 +29,14 @@ class SupportFilterWidget(QWidget):
 
     def __init__(self, academic_service=None, parent=None):
         super().__init__(parent)
+        self.setObjectName("supportFilterWidget")
         self.academic_service = academic_service
         self._grades: list[tuple] = []
 
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(12)
+        grid = QGridLayout(self)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(6)
 
         self.school_year_combo = QComboBox(self)
         self.grade_combo = QComboBox(self)
@@ -49,11 +51,22 @@ class SupportFilterWidget(QWidget):
             ("Môn học", self.subject_combo),
             ("Trạng thái", self.status_combo),
         )
-        for label, combo in controls:
-            form = QFormLayout()
-            form.setContentsMargins(0, 0, 0, 0)
-            form.addRow(label, combo)
-            row.addLayout(form, 1)
+        for column, (text, combo) in enumerate(controls):
+            label = QLabel(text, self)
+            label.setProperty("supportFilterLabel", True)
+            combo.setObjectName(
+                (
+                    "supportSchoolYearFilter",
+                    "supportGradeFilter",
+                    "supportClassFilter",
+                    "supportSubjectFilter",
+                    "supportStatusFilter",
+                )[column]
+            )
+            combo.setMinimumWidth(132)
+            grid.addWidget(label, 0, column)
+            grid.addWidget(combo, 1, column)
+            grid.setColumnStretch(column, 1)
 
         self.school_year_combo.currentIndexChanged.connect(
             self._year_changed

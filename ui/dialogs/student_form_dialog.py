@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QFormLayout,
     QLabel,
     QLineEdit,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from models.dto import Student, StudentCreateData, StudentUpdateData
+from ui.theme import dialog_stylesheet
 
 
 class StudentFormDialog(QDialog):
@@ -52,10 +54,12 @@ class StudentFormDialog(QDialog):
             if self.mode == self.MODE_EDIT
             else "Thêm học sinh"
         )
+        self.setObjectName("studentFormDialog")
         self.setModal(True)
-        self.resize(520, 520)
+        self.resize(560, 590)
 
         self._build_ui()
+        self.setStyleSheet(dialog_stylesheet())
         self._load_student_if_needed()
         self._connect_signals()
 
@@ -65,6 +69,8 @@ class StudentFormDialog(QDialog):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(28, 24, 28, 24)
+        root.setSpacing(16)
 
         self.title_label = QLabel(
             "Cập nhật hồ sơ học sinh"
@@ -72,9 +78,28 @@ class StudentFormDialog(QDialog):
             else "Thêm học sinh mới",
             self,
         )
+        self.title_label.setObjectName("dialogTitle")
+        self.title_label.setProperty("dialogTitle", True)
         root.addWidget(self.title_label)
 
-        form = QFormLayout()
+        self.subtitle_label = QLabel(
+            "Các trường có dấu * là bắt buộc.",
+            self,
+        )
+        self.subtitle_label.setObjectName("dialogSubtitle")
+        self.subtitle_label.setProperty("dialogSubtitle", True)
+        root.addWidget(self.subtitle_label)
+
+        self.form_card = QFrame(self)
+        self.form_card.setObjectName("dialogCard")
+        self.form_card.setProperty("dialogCard", True)
+        form = QFormLayout(self.form_card)
+        form.setContentsMargins(20, 18, 20, 18)
+        form.setHorizontalSpacing(18)
+        form.setVerticalSpacing(12)
+        form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
 
         self.student_code_input = QLineEdit(self)
         self.student_code_input.setPlaceholderText("Ví dụ: HS0001")
@@ -111,7 +136,7 @@ class StudentFormDialog(QDialog):
         form.addRow("Email", self.email_input)
         form.addRow("Địa chỉ", self.address_input)
 
-        root.addLayout(form)
+        root.addWidget(self.form_card, 1)
 
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -132,6 +157,9 @@ class StudentFormDialog(QDialog):
             else "Thêm học sinh"
         )
         self.cancel_button.setText("Hủy")
+        self.save_button.setObjectName("primaryDialogButton")
+        self.save_button.setProperty("variant", "primary")
+        self.cancel_button.setProperty("variant", "secondary")
 
         root.addWidget(self.button_box)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -35,6 +36,7 @@ from ui.dialogs.catalog_dialogs import (
     SubjectDialog,
     SupportRuleDialog,
 )
+from ui.theme import catalog_system_stylesheet, status_badge_colors
 
 
 class CatalogPage(QWidget):
@@ -63,26 +65,32 @@ class CatalogPage(QWidget):
         self.subjects: tuple[Subject, ...] = ()
         self.assessments: tuple[Assessment, ...] = ()
         self.support_rules: tuple[SupportRule, ...] = ()
+        self._empty_labels: dict[QTableWidget, QLabel] = {}
         self.setObjectName("catalogPage")
         self._build_ui()
         self._connect_signals()
+        self.setStyleSheet(catalog_system_stylesheet())
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 24)
         root.setSpacing(16)
         self.title_label = QLabel("Danh mục", self)
+        self.title_label.setObjectName("catalogTitleLabel")
         self.subtitle_label = QLabel(
-            "Quản lý năm học, khối và lớp học.",
+            "Quản lý cấu trúc trường học, học vụ và quy tắc hỗ trợ.",
             self,
         )
+        self.subtitle_label.setObjectName("catalogSubtitleLabel")
         self.state_label = QLabel(self)
+        self.state_label.setObjectName("catalogStateLabel")
         self.state_label.setWordWrap(True)
         root.addWidget(self.title_label)
         root.addWidget(self.subtitle_label)
         root.addWidget(self.state_label)
 
         self.tabs = QTabWidget(self)
+        self.tabs.setObjectName("schoolCatalogTabs")
         self.school_year_tab = QWidget(self.tabs)
         self.grade_tab = QWidget(self.tabs)
         self.class_tab = QWidget(self.tabs)
@@ -94,6 +102,7 @@ class CatalogPage(QWidget):
         self._build_grade_tab()
         self._build_class_tab()
         self.advanced_tabs = QTabWidget(self)
+        self.advanced_tabs.setObjectName("academicCatalogTabs")
         self.subject_tab = QWidget(self.advanced_tabs)
         self.assessment_tab = QWidget(self.advanced_tabs)
         self.support_rule_tab = QWidget(self.advanced_tabs)
@@ -104,6 +113,15 @@ class CatalogPage(QWidget):
         self._build_subject_tab()
         self._build_assessment_tab()
         self._build_support_rule_tab()
+        for button in (
+            self.add_school_year_button,
+            self.add_grade_button,
+            self.add_class_button,
+            self.add_subject_button,
+            self.add_assessment_button,
+            self.add_rule_button,
+        ):
+            button.setProperty("variant", "primary")
 
     def _build_school_year_tab(self) -> None:
         layout = QVBoxLayout(self.school_year_tab)
@@ -120,7 +138,7 @@ class CatalogPage(QWidget):
             ("Tên năm học", "Ngày bắt đầu", "Ngày kết thúc", "Hiện tại"),
             0,
         )
-        layout.addWidget(self.school_year_table, 1)
+        self._add_table_with_empty_state(layout, self.school_year_table, "Chưa có năm học.")
 
     def _build_grade_tab(self) -> None:
         layout = QVBoxLayout(self.grade_tab)
@@ -134,7 +152,7 @@ class CatalogPage(QWidget):
         actions.addWidget(self.refresh_grade_button)
         layout.addLayout(actions)
         self.grade_table = self._make_table(("Số khối", "Tên hiển thị"), 1)
-        layout.addWidget(self.grade_table, 1)
+        self._add_table_with_empty_state(layout, self.grade_table, "Chưa có khối lớp.")
 
     def _build_class_tab(self) -> None:
         layout = QVBoxLayout(self.class_tab)
@@ -164,7 +182,7 @@ class CatalogPage(QWidget):
             ("Tên lớp", "Khối", "Năm học", "GVCN", "Trạng thái"),
             0,
         )
-        layout.addWidget(self.class_table, 1)
+        self._add_table_with_empty_state(layout, self.class_table, "Không có lớp phù hợp bộ lọc.")
 
     def _build_subject_tab(self) -> None:
         layout = QVBoxLayout(self.subject_tab)
@@ -183,7 +201,7 @@ class CatalogPage(QWidget):
             ("Mã môn", "Tên môn", "Trạng thái"),
             1,
         )
-        layout.addWidget(self.subject_table, 1)
+        self._add_table_with_empty_state(layout, self.subject_table, "Chưa có môn học.")
 
     def _build_assessment_tab(self) -> None:
         layout = QVBoxLayout(self.assessment_tab)
@@ -213,10 +231,19 @@ class CatalogPage(QWidget):
             ("Tên bài", "Năm học", "Môn học", "Học kỳ", "Loại", "Ngày", "Trạng thái"),
             0,
         )
-        layout.addWidget(self.assessment_table, 1)
+        self._add_table_with_empty_state(
+            layout, self.assessment_table, "Không có bài đánh giá phù hợp bộ lọc."
+        )
 
     def _build_support_rule_tab(self) -> None:
         layout = QVBoxLayout(self.support_rule_tab)
+        self.rule_explanation_label = QLabel(
+            "Học sinh có điểm thấp hơn ngưỡng đang áp dụng sẽ được đưa vào luồng xem xét hỗ trợ.",
+            self.support_rule_tab,
+        )
+        self.rule_explanation_label.setObjectName("supportRuleExplanation")
+        self.rule_explanation_label.setWordWrap(True)
+        layout.addWidget(self.rule_explanation_label)
         filters = QHBoxLayout()
         self.rule_year_combo = QComboBox(self.support_rule_tab)
         self.rule_subject_combo = QComboBox(self.support_rule_tab)
@@ -243,7 +270,9 @@ class CatalogPage(QWidget):
             ("Năm học", "Môn học", "Ngưỡng", "Trạng thái"),
             1,
         )
-        layout.addWidget(self.rule_table, 1)
+        self._add_table_with_empty_state(
+            layout, self.rule_table, "Không có quy tắc hỗ trợ phù hợp bộ lọc."
+        )
 
     @staticmethod
     def _make_table(headers: tuple[str, ...], stretch_column: int) -> QTableWidget:
@@ -254,6 +283,8 @@ class CatalogPage(QWidget):
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         table.setAlternatingRowColors(True)
+        table.setShowGrid(False)
+        table.verticalHeader().setDefaultSectionSize(38)
         table.verticalHeader().setVisible(False)
         table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.ResizeToContents
@@ -263,6 +294,23 @@ class CatalogPage(QWidget):
             QHeaderView.ResizeMode.Stretch,
         )
         return table
+
+    def _add_table_with_empty_state(
+        self,
+        layout: QVBoxLayout,
+        table: QTableWidget,
+        message: str,
+    ) -> None:
+        empty_label = QLabel(message, self)
+        empty_label.setObjectName("catalogEmptyLabel")
+        empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_label.setMinimumHeight(42)
+        self._empty_labels[table] = empty_label
+        layout.addWidget(empty_label)
+        layout.addWidget(table, 1)
+
+    def _update_empty_state(self, table: QTableWidget) -> None:
+        self._empty_labels[table].setVisible(table.rowCount() == 0)
 
     def _connect_signals(self) -> None:
         self.add_school_year_button.clicked.connect(self.create_school_year)
@@ -410,6 +458,8 @@ class CatalogPage(QWidget):
                 "Có" if item.is_current else "Không",
             )
             self._set_row(self.school_year_table, index, values, item.school_year_id)
+            self._style_status_cell(self.school_year_table.item(index, 3), item.is_current)
+        self._update_empty_state(self.school_year_table)
 
     def _render_grades(self) -> None:
         self.grade_table.setRowCount(len(self.grades))
@@ -420,6 +470,7 @@ class CatalogPage(QWidget):
                 (str(item.grade_number), item.grade_name or f"Khối {item.grade_number}"),
                 item.grade_id,
             )
+        self._update_empty_state(self.grade_table)
 
     def _render_classes(self) -> None:
         self.class_table.setRowCount(len(self.classes))
@@ -436,6 +487,8 @@ class CatalogPage(QWidget):
                 ),
                 item.class_id,
             )
+            self._style_status_cell(self.class_table.item(index, 4), item.is_active)
+        self._update_empty_state(self.class_table)
 
     def _render_subjects(self) -> None:
         self.subject_table.setRowCount(len(self.subjects))
@@ -450,6 +503,8 @@ class CatalogPage(QWidget):
                 ),
                 item.subject_id,
             )
+            self._style_status_cell(self.subject_table.item(index, 2), item.is_active)
+        self._update_empty_state(self.subject_table)
 
     def _render_assessments(self) -> None:
         years = {item.school_year_id: item.year_name for item in self.school_years}
@@ -477,6 +532,12 @@ class CatalogPage(QWidget):
                 ),
                 item.assessment_id,
             )
+            self._style_status_cell(
+                self.assessment_table.item(index, 6),
+                item.status == AssessmentStatus.ACTIVE,
+                warning=item.status == AssessmentStatus.LOCKED,
+            )
+        self._update_empty_state(self.assessment_table)
 
     def _render_support_rules(self) -> None:
         years = {item.school_year_id: item.year_name for item in self.school_years}
@@ -494,6 +555,8 @@ class CatalogPage(QWidget):
                 ),
                 item.rule_id,
             )
+            self._style_status_cell(self.rule_table.item(index, 3), item.is_active)
+        self._update_empty_state(self.rule_table)
 
     @staticmethod
     def _set_row(table, row, values, identity) -> None:
@@ -502,6 +565,14 @@ class CatalogPage(QWidget):
             if column == 0:
                 cell.setData(Qt.ItemDataRole.UserRole, identity)
             table.setItem(row, column, cell)
+
+    @staticmethod
+    def _style_status_cell(cell: QTableWidgetItem, active: bool, warning: bool = False) -> None:
+        status = "LOCKED" if warning else ("ACTIVE" if active else "INACTIVE")
+        foreground, background = status_badge_colors(status)
+        cell.setForeground(QColor(foreground))
+        cell.setBackground(QColor(background))
+        cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
     def _load_class_filters(self) -> None:
         self.class_year_combo.blockSignals(True)
