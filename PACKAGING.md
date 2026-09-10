@@ -74,9 +74,11 @@ executable. It does not copy the real `.env`.
 
 The spec uses the normal ONEDIR `Analysis` → `PYZ` → windowed `EXE` → `COLLECT`
 structure. It relies on official PyInstaller hooks and the application's explicit
-imports for PySide6, QtAgg/matplotlib, pyodbc, bcrypt, openpyxl and dotenv. No
-project data files or speculative hidden imports/binaries are added. Windows
-version metadata comes from `build_config/windows_version_info.txt`.
+imports for PySide6, QtAgg/matplotlib, pyodbc, bcrypt, openpyxl, dotenv, and the
+pinned `google-genai` runtime. The approved assistant knowledge JSON files are
+the only assistant data added to the spec. No speculative hidden imports or
+binaries are added. Windows version metadata comes from
+`build_config/windows_version_info.txt`.
 
 ## Inno Setup installer
 
