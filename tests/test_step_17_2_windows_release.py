@@ -53,13 +53,13 @@ def _sanitized_environment() -> dict[str, str]:
 
 
 def test_current_version_inputs_are_consistent_after_v11_release():
-    assert "APP_VERSION=1.2.0" in read(".env.example")
-    assert '"1.2.0"' in read("config/settings.py")
+    assert "APP_VERSION=1.3.0" in read(".env.example")
+    assert '"1.3.0"' in read("config/settings.py")
     metadata = read("build_config/windows_version_info.txt")
-    assert "filevers=(1, 2, 0, 0)" in metadata
-    assert "prodvers=(1, 2, 0, 0)" in metadata
-    assert "StringStruct('FileVersion', '1.2.0')" in metadata
-    assert "StringStruct('ProductVersion', '1.2.0')" in metadata
+    assert "filevers=(1, 3, 0, 0)" in metadata
+    assert "prodvers=(1, 3, 0, 0)" in metadata
+    assert "StringStruct('FileVersion', '1.3.0')" in metadata
+    assert "StringStruct('ProductVersion', '1.3.0')" in metadata
     assert "StringStruct('ProductName', 'Student Support System')" in metadata
     assert "StringStruct('OriginalFilename', 'StudentSupportSystem.exe')" in metadata
 
@@ -103,9 +103,9 @@ def test_current_release_scripts_target_only_current_onedir_artifacts():
     assert "StudentSupportSystem.spec" in build
     assert "StudentSupportSystem.exe" in build
     assert "Remove-Item -LiteralPath $Target -Recurse -Force" in build
-    assert "StudentSupportSystem-1.2.0-win64.zip" in finalize
-    assert "RELEASE_NOTES_V1.2.0.md" in finalize
-    assert "RELEASE_CHECKLIST_V1.2.0.md" in finalize
+    assert "StudentSupportSystem-1.3.0-win64.zip" in finalize
+    assert "RELEASE_NOTES_V1.3.0.md" in finalize
+    assert "RELEASE_CHECKLIST_V1.3.0.md" in finalize
     assert "StudentSupportSystem-1.0.0-win64.zip" not in finalize
 
 
@@ -116,8 +116,8 @@ def test_current_package_contains_runtime_docs_and_no_forbidden_artifacts():
         "_internal",
         ".env.example",
         "HUONG_DAN.txt",
-        "RELEASE_NOTES_V1.2.0.md",
-        "RELEASE_CHECKLIST_V1.2.0.md",
+        "RELEASE_NOTES_V1.3.0.md",
+        "RELEASE_CHECKLIST_V1.3.0.md",
     }
     assert required.issubset({path.name for path in package.iterdir()})
     paths = tuple(path.relative_to(package) for path in package.rglob("*"))

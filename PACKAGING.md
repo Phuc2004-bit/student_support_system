@@ -2,7 +2,7 @@
 
 ## Release recommendation
 
-Use a PyInstaller **onedir** build for V1.2. PySide6, matplotlib, pyodbc and
+Use a PyInstaller **onedir** build for V1.3. PySide6, matplotlib, pyodbc and
 bcrypt include native components; onedir gives predictable startup, makes Qt
 plugins and DLLs easier to inspect, and avoids onefile temporary extraction.
 
@@ -16,7 +16,7 @@ dist/
     HUONG_DAN.txt
 ```
 
-Product name: `Student Support System`; version: `1.2.0`; executable:
+Product name: `Student Support System`; version: `1.3.0`; executable:
 `StudentSupportSystem.exe`. The official icon is stored in `assets/app_icon.ico`
 and is applied to the executable and installer.
 
@@ -111,7 +111,7 @@ deployer, not instructions for an end user of the installed binary.
 
 ## Signing and SmartScreen
 
-The V1.2 installer is unsigned. Windows SmartScreen may therefore display an
+The V1.3 installer is unsigned. Windows SmartScreen may therefore display an
 unrecognized-app warning. Do not bypass SmartScreen, use a fabricated
 certificate, or describe the package as coming from a Trusted Publisher. A
 future signed release requires an authentic code-signing identity.

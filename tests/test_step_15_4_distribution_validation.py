@@ -169,7 +169,7 @@ def _run_functional_smoke(
     assert payload["fixture_prefix"] == PREFIX
     assert payload["db_name"] == "student_support_db_test"
     assert payload["configured_db"] == "student_support_db_test"
-    assert payload["app_version"] == "1.2.0"
+    assert payload["app_version"] == "1.3.0"
     assert payload["residual_counts"] == [0, 0, 0, 0, 0, 0]
     excluded = {
         "env_file", "executable", "working_directory", "runtime_paths",

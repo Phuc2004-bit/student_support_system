@@ -24,7 +24,7 @@ set values locally. Never commit the resulting `.env` file.
 ```dotenv
 CHAT_ASSISTANT_ENABLED=true
 CHAT_PROVIDER=gemini
-GEMINI_API_KEY=<your key supplied outside source control>
+GEMINI_API_KEY=<user supplied secret>
 GEMINI_MODEL=gemini-2.5-flash
 GEMINI_TIMEOUT_SECONDS=15
 GEMINI_MAX_RETRIES=1

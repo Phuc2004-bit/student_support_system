@@ -1,5 +1,5 @@
 #define MyAppName "Student Support System"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.3.0"
 #define MyAppExeName "StudentSupportSystem.exe"
 #define MyAppSourceDir "..\dist\StudentSupportSystem"
 
@@ -13,7 +13,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=output
-OutputBaseFilename=StudentSupportSystem-1.2.0-Setup
+OutputBaseFilename=StudentSupportSystem-1.3.0-Setup
 SetupIconFile=..\assets\app_icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
@@ -21,7 +21,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-InfoBeforeFile=PREREQUISITES_V1.2.txt
+InfoBeforeFile=PREREQUISITES_V1.3.txt
 CloseApplications=yes
 RestartApplications=no
 
