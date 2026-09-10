@@ -1,0 +1,249 @@
+{
+  "schema_version": 1,
+  "source_prefix": "faq",
+  "entries": [
+    {
+      "id": "login_001",
+      "category": "login",
+      "question": "Làm thế nào để đăng nhập?",
+      "aliases": ["Cách đăng nhập", "Tôi đăng nhập ở đâu"],
+      "answer": "Tại màn hình Đăng nhập, nhập tên đăng nhập và mật khẩu do quản trị viên cấp, rồi chọn Đăng nhập. Hệ thống không có đăng ký tài khoản công khai.",
+      "keywords": ["đăng", "nhập", "tài", "khoản"],
+      "screen": "Đăng nhập"
+    },
+    {
+      "id": "dashboard_001",
+      "category": "dashboard",
+      "question": "Dashboard hiển thị gì?",
+      "aliases": ["Trang tổng quan có gì", "Xem thống kê tổng quan"],
+      "answer": "Dashboard hiển thị các chỉ số và biểu đồ tổng quan từ dữ liệu hiện có. Nếu chưa có dữ liệu phù hợp, biểu đồ có thể ở trạng thái trống; hãy kiểm tra bộ lọc và dữ liệu nghiệp vụ trước.",
+      "keywords": ["dashboard", "tổng", "quan", "biểu", "đồ"],
+      "screen": "Tổng quan"
+    },
+    {
+      "id": "students_001",
+      "category": "students",
+      "question": "Quản lý học sinh như thế nào?",
+      "aliases": ["Cách thêm học sinh", "Tìm và sửa học sinh"],
+      "answer": "Vào Học sinh để tìm theo mã hoặc tên và lọc theo năm học, khối, lớp, trạng thái. Dùng + Thêm học sinh để tạo mới, Sửa học sinh để cập nhật, và Xem hồ sơ để xem bốn tab lịch sử.",
+      "keywords": ["học", "sinh", "thêm", "sửa", "hồ", "sơ"],
+      "screen": "Học sinh"
+    },
+    {
+      "id": "scores_001",
+      "category": "scores",
+      "question": "Nhập điểm trực tiếp như thế nào?",
+      "aliases": ["Cách lưu điểm thủ công", "Nhập điểm trên màn hình"],
+      "answer": "Vào Điểm, chọn lần lượt năm học, khối, lớp, môn học và bài đánh giá. Khi đủ ngữ cảnh, nhập điểm hợp lệ trong bảng và chọn Lưu điểm. Trợ lý chỉ hướng dẫn, không nhập hoặc sửa điểm thay bạn.",
+      "keywords": ["nhập", "điểm", "lưu", "assessment"],
+      "screen": "Điểm"
+    },
+    {
+      "id": "support_001",
+      "category": "support",
+      "question": "Theo dõi hồ sơ bổ trợ ở đâu?",
+      "aliases": ["Cách xem bổ trợ", "Mở chi tiết intervention"],
+      "answer": "Vào Bổ trợ, dùng bộ lọc năm học, khối, lớp, môn và trạng thái. Mở hồ sơ để xem học sinh, lớp, môn, điểm kích hoạt, người phụ trách, phương pháp, ghi chú và lịch sử đánh giá.",
+      "keywords": ["bổ", "trợ", "intervention", "chi", "tiết"],
+      "screen": "Bổ trợ"
+    },
+    {
+      "id": "reports_001",
+      "category": "reports",
+      "question": "Xem báo cáo và thống kê như thế nào?",
+      "aliases": ["Cách mở báo cáo", "Lọc báo cáo bổ trợ"],
+      "answer": "Vào Báo cáo, chọn các bộ lọc năm học, khối, lớp, môn và trạng thái phù hợp. Bảng, chỉ số và biểu đồ chỉ phản ánh dữ liệu đã lưu; có thể xuất báo cáo khi quyền hiện tại cho phép.",
+      "keywords": ["báo", "cáo", "thống", "kê", "lọc"],
+      "screen": "Báo cáo"
+    },
+    {
+      "id": "catalogs_001",
+      "category": "catalogs",
+      "question": "Quản lý danh mục ở đâu?",
+      "aliases": ["Cách cấu hình năm học", "Quản lý môn và lớp"],
+      "answer": "Tài khoản ADMIN vào Danh mục để quản lý năm học, khối, lớp, môn học, bài đánh giá và quy tắc bổ trợ. TEACHER không có quyền vào chức năng quản trị danh mục.",
+      "keywords": ["danh", "mục", "năm", "học", "môn", "lớp"],
+      "screen": "Danh mục"
+    },
+    {
+      "id": "system_001",
+      "category": "system",
+      "question": "Trang Hệ thống dùng để làm gì?",
+      "aliases": ["Chức năng hệ thống", "Quản lý người dùng ở đâu"],
+      "answer": "Trang Hệ thống cho phép ADMIN quản lý người dùng. ADMIN và TEACHER đều có thể quản lý hồ sơ và mật khẩu của chính mình; TEACHER không được quản lý tài khoản khác.",
+      "keywords": ["hệ", "thống", "người", "dùng", "user"],
+      "screen": "Hệ thống"
+    },
+    {
+      "id": "profile_001",
+      "category": "profile",
+      "question": "Cập nhật hồ sơ cá nhân như thế nào?",
+      "aliases": ["Sửa thông tin của tôi", "Đổi thông tin cá nhân"],
+      "answer": "Vào Hệ thống, mở khu vực tài khoản cá nhân, cập nhật các trường được phép và chọn Cập nhật hồ sơ. Thao tác này không thay đổi vai trò hay quyền của tài khoản.",
+      "keywords": ["hồ", "sơ", "cá", "nhân", "cập", "nhật"],
+      "screen": "Hệ thống"
+    },
+    {
+      "id": "password_001",
+      "category": "password",
+      "question": "Đổi mật khẩu như thế nào?",
+      "aliases": ["doi mat khau", "Thay mật khẩu của tôi"],
+      "answer": "Vào Hệ thống và chọn Đổi mật khẩu. Nhập mật khẩu hiện tại, mật khẩu mới và xác nhận theo chính sách đang hiển thị. Mật khẩu không được hiển thị lại hoặc ghi vào log.",
+      "keywords": ["đổi", "mật", "khẩu"],
+      "screen": "Hệ thống"
+    },
+    {
+      "id": "excel_001",
+      "category": "excel",
+      "question": "Nhập điểm từ Excel như thế nào?",
+      "aliases": ["Cách import Excel", "Dùng file mẫu nhập điểm"],
+      "answer": "Vào Điểm, chọn đủ năm học, khối, lớp, môn và bài đánh giá. Chọn Tải file mẫu, điền đúng cấu trúc, rồi chọn Nhập điểm từ Excel để xem preview và xử lý các lỗi trước khi xác nhận.",
+      "keywords": ["nhập", "excel", "import", "template"],
+      "screen": "Điểm"
+    },
+    {
+      "id": "installation_001",
+      "category": "installation",
+      "question": "Cài ứng dụng trên Windows như thế nào?",
+      "aliases": ["Cách chạy bộ cài Windows", "Cài Student Support System"],
+      "answer": "Chạy bộ cài chính thức trên Windows 64-bit và làm theo hướng dẫn. Bản cài hiện chưa ký số nên SmartScreen có thể cảnh báo; hãy xác minh nguồn phát hành và checksum, không tắt hoặc bỏ qua cơ chế bảo vệ hệ thống.",
+      "keywords": ["cài", "đặt", "windows", "installer", "smartscreen"],
+      "screen": "Bộ cài"
+    },
+    {
+      "id": "prerequisites_001",
+      "category": "prerequisites",
+      "question": "Ứng dụng cần SQL Server và ODBC gì?",
+      "aliases": ["Yêu cầu SQL Server", "Cần ODBC Driver 18"],
+      "answer": "Máy triển khai cần SQL Server hoặc SQL Server Express, ODBC Driver 18 for SQL Server và database ứng dụng đã được chuẩn bị. Kết nối dùng cấu hình môi trường bên ngoài ứng dụng; không tự thay database.",
+      "keywords": ["sql", "server", "odbc", "driver", "18"],
+      "screen": "Cài đặt"
+    },
+    {
+      "id": "admin_bootstrap_001",
+      "category": "admin_bootstrap",
+      "question": "Tạo tài khoản ADMIN đầu tiên như thế nào?",
+      "aliases": ["Initial ADMIN", "Khởi tạo quản trị viên đầu tiên"],
+      "answer": "Từ source checkout được bảo vệ, chạy scripts/create_initial_admin.py và làm theo lời nhắc tương tác. Script hiển thị database đang dùng, không có mật khẩu mặc định và chỉ tạo ADMIN đầu tiên theo chính sách bootstrap.",
+      "keywords": ["initial", "admin", "đầu", "tiên", "bootstrap"],
+      "screen": "Công cụ quản trị"
+    },
+    {
+      "id": "admin_reset_001",
+      "category": "admin_reset",
+      "question": "Reset mật khẩu ADMIN như thế nào?",
+      "aliases": ["Quên mật khẩu quản trị", "Đặt lại mật khẩu admin"],
+      "answer": "Từ source checkout được bảo vệ, chạy scripts/reset_admin_password.py và nhập username ADMIN cùng mật khẩu mới qua lời nhắc ẩn. Script không thay đổi vai trò, trạng thái hay hồ sơ tài khoản.",
+      "keywords": ["reset", "admin", "mật", "khẩu"],
+      "screen": "Công cụ quản trị"
+    },
+    {
+      "id": "permissions_001",
+      "category": "permissions",
+      "question": "ADMIN và TEACHER có quyền gì?",
+      "aliases": ["Phân quyền tài khoản", "Quyền giáo viên và quản trị viên"],
+      "answer": "ADMIN có toàn bộ chức năng quản trị. TEACHER được dùng Học sinh, Điểm, Bổ trợ, Báo cáo và phần Hệ thống dành cho hồ sơ của chính mình; TEACHER không được vào Danh mục hoặc quản lý người dùng.",
+      "keywords": ["admin", "teacher", "quyền", "phân"],
+      "screen": "Điều hướng"
+    },
+    {
+      "id": "troubleshooting_login",
+      "category": "troubleshooting",
+      "question": "Tại sao tôi không đăng nhập được?",
+      "aliases": ["Lỗi đăng nhập", "Đăng nhập thất bại"],
+      "answer": "Kiểm tra tên đăng nhập, mật khẩu, trạng thái tài khoản và kết nối database. Nếu vẫn lỗi, liên hệ ADMIN; không chia sẻ mật khẩu hoặc thông tin kết nối trong ảnh chụp/log hỗ trợ.",
+      "keywords": ["lỗi", "đăng", "nhập", "thất", "bại"],
+      "screen": "Đăng nhập"
+    },
+    {
+      "id": "troubleshooting_year",
+      "category": "troubleshooting",
+      "question": "Tại sao chưa có năm học để chọn?",
+      "aliases": ["Danh sách năm học trống", "Không thấy năm học"],
+      "answer": "ADMIN cần kiểm tra Danh mục năm học và trạng thái dữ liệu liên quan. TEACHER không quản lý Danh mục nên cần liên hệ ADMIN nếu danh sách vẫn trống.",
+      "keywords": ["năm", "học", "trống", "chưa"],
+      "screen": "Danh mục"
+    },
+    {
+      "id": "troubleshooting_empty",
+      "category": "troubleshooting",
+      "question": "Tại sao không thấy dữ liệu hoặc biểu đồ?",
+      "aliases": ["Biểu đồ chưa có dữ liệu", "Danh sách không có dữ liệu"],
+      "answer": "Kiểm tra lại năm học và các bộ lọc phụ thuộc, sau đó dùng Làm mới nếu màn hình có nút này. Trạng thái trống là bình thường khi chưa có dữ liệu phù hợp; trợ lý không thể đọc dữ liệu thật để xác định bản ghi thiếu.",
+      "keywords": ["dữ", "liệu", "trống", "biểu", "đồ"],
+      "screen": "Nhiều màn hình"
+    },
+    {
+      "id": "troubleshooting_connection",
+      "category": "troubleshooting",
+      "question": "Khắc phục lỗi kết nối SQL Server thế nào?",
+      "aliases": ["Không kết nối được database", "Lỗi ODBC Driver 18"],
+      "answer": "Kiểm tra SQL Server đang chạy, database đã tồn tại, ODBC Driver 18 đã cài và tệp .env có cấu hình đúng môi trường. Không dán thông tin kết nối hoặc credential vào chat; nhờ quản trị hệ thống kiểm tra nếu cần.",
+      "keywords": ["kết", "nối", "sql", "server", "odbc", "env"],
+      "screen": "Khởi động"
+    },
+    {
+      "id": "troubleshooting_excel",
+      "category": "troubleshooting",
+      "question": "Tại sao nhập Excel bị lỗi?",
+      "aliases": ["File Excel không đúng template", "Import điểm thất bại"],
+      "answer": "Tải lại file mẫu từ đúng ngữ cảnh Điểm, giữ nguyên tên và cấu trúc cột, nhập dữ liệu hợp lệ rồi xem các lỗi ở preview. Dữ liệu chỉ được ghi khi bước xác nhận hợp lệ hoàn tất.",
+      "keywords": ["excel", "lỗi", "template", "preview"],
+      "screen": "Điểm"
+    },
+    {
+      "id": "troubleshooting_teacher_menu",
+      "category": "troubleshooting",
+      "question": "Tại sao TEACHER không thấy menu quản trị?",
+      "aliases": ["Giáo viên không thấy Danh mục", "Teacher không quản lý user"],
+      "answer": "Đây là hành vi đúng theo phân quyền: TEACHER không được vào Danh mục hoặc quản lý người dùng. Hãy dùng tài khoản ADMIN hợp lệ nếu công việc thực sự cần quyền quản trị.",
+      "keywords": ["teacher", "menu", "quản", "trị", "danh", "mục"],
+      "screen": "Điều hướng"
+    },
+    {
+      "id": "safety_actions",
+      "category": "safety",
+      "question": "Bạn có thể sửa điểm hoặc hoàn thành bổ trợ giúp tôi không?",
+      "aliases": ["Đánh dấu em này hoàn thành đi", "Sửa điểm giúp tôi"],
+      "answer": "Tôi chỉ hướng dẫn bạn thao tác trên màn hình, không trực tiếp sửa điểm, chuyển trạng thái hoặc hoàn thành hồ sơ. Hệ thống không cho hoàn thành thủ công ngoài review workflow.",
+      "keywords": ["sửa", "điểm", "hoàn", "thành", "action"],
+      "screen": "Điểm / Bổ trợ"
+    },
+    {
+      "id": "safety_credentials",
+      "category": "safety",
+      "question": "Trợ lý có cung cấp mật khẩu quản trị không?",
+      "aliases": ["Cho tôi mật khẩu admin", "Tiết lộ credential"],
+      "answer": "Không. Trợ lý không đọc hoặc cung cấp mật khẩu, mã băm hay bí mật cấu hình. ADMIN hợp lệ có thể dùng quy trình reset được bảo vệ nếu cần khôi phục quyền truy cập.",
+      "keywords": ["mật", "khẩu", "admin", "credential"],
+      "screen": "Không áp dụng"
+    },
+    {
+      "id": "safety_sql",
+      "category": "safety",
+      "question": "Trợ lý có thể chạy câu SQL không?",
+      "aliases": ["Chạy SQL này", "Truy vấn database giúp tôi"],
+      "answer": "Không. Trợ lý chỉ hướng dẫn sử dụng từ tài liệu tĩnh, không kết nối database và không chạy truy vấn. Hãy dùng quy trình vận hành được phê duyệt với người quản trị có thẩm quyền.",
+      "keywords": ["sql", "truy", "vấn", "database"],
+      "screen": "Không áp dụng"
+    },
+    {
+      "id": "safety_threshold",
+      "category": "safety",
+      "question": "Trợ lý có thể đổi ngưỡng bổ trợ không?",
+      "aliases": ["Đổi ngưỡng thành 4 điểm", "Sửa threshold giúp tôi"],
+      "answer": "Không. Trợ lý chỉ giải thích quy tắc và không thay đổi cấu hình. ADMIN quản lý quy tắc bổ trợ trong Danh mục theo quyền và quy trình hiện có.",
+      "keywords": ["đổi", "ngưỡng", "threshold", "quy", "tắc"],
+      "screen": "Danh mục"
+    },
+    {
+      "id": "safety_student_data",
+      "category": "safety",
+      "question": "Trợ lý có thể cho biết học sinh nào yếu nhất không?",
+      "aliases": ["Cho biết học sinh yếu nhất", "Đọc dữ liệu học sinh thật"],
+      "answer": "Không. Trợ lý không đọc, xếp hạng hoặc suy đoán từ dữ liệu học sinh thật. Người dùng có quyền có thể xem Báo cáo và áp dụng bộ lọc phù hợp; trợ lý chỉ hướng dẫn cách dùng màn hình.",
+      "keywords": ["học", "sinh", "yếu", "nhất", "dữ", "liệu"],
+      "screen": "Báo cáo"
+    }
+  ]
+}

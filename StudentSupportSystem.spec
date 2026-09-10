@@ -8,6 +8,7 @@ a = Analysis(
     datas=[
         ("assets/app_icon.png", "assets"),
         ("assets/app_icon.ico", "assets"),
+        ("assistant/knowledge/*.json", "assistant/knowledge"),
     ],
     hiddenimports=[],
     hookspath=[],

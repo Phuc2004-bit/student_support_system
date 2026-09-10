@@ -9,7 +9,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from assistant import ChatAssistantService
 from app_context import AppContext
+from config.settings import Settings
 from ui.pages.dashboard_page import DashboardPage
 from ui.pages.catalog_page import CatalogPage
 from ui.pages.reports_page import ReportsPage
@@ -20,6 +22,7 @@ from ui.pages.system_page import SystemPage
 from ui.widgets.page_stack import PageStack
 from ui.widgets.sidebar import Sidebar
 from ui.widgets.topbar import Topbar
+from ui.widgets.chat_assistant_widget import ChatAssistantDialog
 from ui.theme import main_window_stylesheet
 
 
@@ -64,6 +67,9 @@ class MainWindow(QMainWindow):
         self,
         app_context: AppContext,
         parent: QWidget | None = None,
+        *,
+        chat_assistant_enabled: bool | None = None,
+        chat_assistant_service: ChatAssistantService | None = None,
     ) -> None:
         super().__init__(parent)
 
@@ -80,6 +86,15 @@ class MainWindow(QMainWindow):
         self.app_context = app_context
         self._session = app_context.session
         self._logout_in_progress = False
+        self._chat_assistant_enabled = (
+            Settings.CHAT_ASSISTANT_ENABLED
+            if chat_assistant_enabled is None
+            else bool(chat_assistant_enabled)
+        )
+        self._chat_assistant_service = chat_assistant_service
+        self.chat_assistant_dialog: ChatAssistantDialog | None = None
+        if self._chat_assistant_enabled and self._chat_assistant_service is None:
+            self._chat_assistant_service = ChatAssistantService.from_settings()
 
         self.setObjectName("mainWindow")
         self.setWindowTitle(
@@ -149,6 +164,7 @@ class MainWindow(QMainWindow):
             self.app_context.session,
             self.body_widget,
         )
+        self.topbar.set_assistant_visible(self._chat_assistant_enabled)
         body_layout.addWidget(self.topbar)
 
         self.page_stack = PageStack(
@@ -292,6 +308,18 @@ class MainWindow(QMainWindow):
         self.sidebar.logout_requested.connect(
             self.request_logout
         )
+        self.topbar.assistant_requested.connect(self.open_chat_assistant)
+
+    def open_chat_assistant(self) -> bool:
+        if not self._chat_assistant_enabled or self._chat_assistant_service is None:
+            return False
+        if self.chat_assistant_dialog is None:
+            self.chat_assistant_dialog = ChatAssistantDialog(
+                self._chat_assistant_service,
+                self,
+            )
+        self.chat_assistant_dialog.open_for_user()
+        return True
 
     def _apply_navigation_permissions(self) -> None:
         permissions = self._current_navigation_permissions()
@@ -416,5 +444,7 @@ class MainWindow(QMainWindow):
         self,
         event: QCloseEvent,
     ) -> None:
+        if self.chat_assistant_dialog is not None:
+            self.chat_assistant_dialog.close()
         self.window_closed.emit()
         super().closeEvent(event)

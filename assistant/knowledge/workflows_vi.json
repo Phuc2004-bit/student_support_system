@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "source_prefix": "workflow",
+  "entries": [
+    {
+      "id": "support_detection",
+      "category": "support_detection",
+      "question": "Quy tắc phát hiện học sinh cần bổ trợ là gì?",
+      "aliases": ["Điểm nào tạo hồ sơ bổ trợ", "Exact threshold có bị phát hiện không"],
+      "answer": "Khi lưu hoặc nhập điểm, hệ thống tra SUPPORT_RULES theo ngữ cảnh. Chỉ khi điểm nhỏ hơn ngưỡng được cấu hình thì mới phát hiện nhu cầu bổ trợ. Điểm bằng đúng ngưỡng không phải là dưới ngưỡng. Không có ngưỡng số cố định trong quy tắc này.",
+      "keywords": ["phát", "hiện", "support_rules", "ngưỡng", "điểm"],
+      "screen": "Điểm / Bổ trợ"
+    },
+    {
+      "id": "support_statuses",
+      "category": "support_status",
+      "question": "Các trạng thái bổ trợ có ý nghĩa gì?",
+      "aliases": ["Giải thích trạng thái intervention", "DETECTED PLANNED IN_PROGRESS WAITING_REVIEW CONTINUE COMPLETED"],
+      "answer": "Các trạng thái chính xác là: DETECTED — Mới phát hiện; PLANNED — Đã lập kế hoạch; IN_PROGRESS — Đang bổ trợ; WAITING_REVIEW — Chờ đánh giá; CONTINUE — Cần tiếp tục; COMPLETED — Đã đạt ngưỡng.",
+      "keywords": ["trạng", "thái", "detected", "planned", "in_progress", "waiting_review", "continue", "completed"],
+      "screen": "Bổ trợ"
+    },
+    {
+      "id": "support_review",
+      "category": "support_review",
+      "question": "Quy trình đánh giá lại hồ sơ bổ trợ như thế nào?",
+      "aliases": ["Khi nào intervention được review", "Điểm review quyết định trạng thái gì", "Khi nào một học sinh được đánh dấu đã đạt ngưỡng?"],
+      "answer": "Chỉ hồ sơ WAITING_REVIEW mới được review. Điểm review lớn hơn hoặc bằng ngưỡng cấu hình tạo kết quả PASSED và chuyển sang COMPLETED; điểm review nhỏ hơn ngưỡng tạo NOT_PASSED và chuyển sang CONTINUE. Không có Complete thủ công, và điểm cao thông thường ngoài review không đóng hồ sơ.",
+      "keywords": ["review", "đánh", "giá", "waiting_review", "passed", "not_passed"],
+      "screen": "Chi tiết bổ trợ"
+    },
+    {
+      "id": "support_episode",
+      "category": "support_detection",
+      "question": "Quy tắc tạo trùng hồ sơ bổ trợ là gì?",
+      "aliases": ["Quy tắc duplicate open intervention", "Điểm thấp sau COMPLETED tạo gì"],
+      "answer": "Hệ thống không tạo hồ sơ bổ trợ mở bị trùng cho cùng ngữ cảnh. Sau khi một hồ sơ đã COMPLETED, một điểm thấp phát sinh sau đó có thể tạo episode mới; hệ thống không ghi đè hoặc cập nhật episode đã hoàn thành thành episode mới.",
+      "keywords": ["duplicate", "trùng", "open", "episode", "completed"],
+      "screen": "Điểm / Bổ trợ"
+    }
+  ]
+}
