@@ -7,12 +7,19 @@ from config.settings import settings
 
 
 _SENSITIVE_VALUE = re.compile(
-    r"(?i)\b(password(?:_hash)?|db_password|pwd)\s*([=:])\s*([^\s;,]+)"
+    r"(?i)\b(password(?:_hash)?|db_password|pwd|gemini_api_key|api[_-]?key)"
+    r"\s*([=:])\s*([^\s;,]+)"
 )
+_AUTHORIZATION_VALUE = re.compile(
+    r"(?i)\bauthorization\s*([=:])\s*[^\r\n]+"
+)
+_BEARER_TOKEN = re.compile(r"(?i)\bbearer\s+[^\s;,]+")
 
 
 def redact_sensitive(text: str) -> str:
-    return _SENSITIVE_VALUE.sub(r"\1\2***", text)
+    redacted = _AUTHORIZATION_VALUE.sub(r"Authorization\1***", text)
+    redacted = _BEARER_TOKEN.sub("Bearer ***", redacted)
+    return _SENSITIVE_VALUE.sub(r"\1\2***", redacted)
 
 
 class RedactingFormatter(logging.Formatter):

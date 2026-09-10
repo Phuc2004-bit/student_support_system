@@ -1362,6 +1362,115 @@ def login_dialog_stylesheet() -> str:
     """
 
 
+def chat_assistant_stylesheet() -> str:
+    """Central dark-theme styling for the read-only assistant dialog."""
+
+    return f"""
+    QDialog#chatAssistantDialog,
+    QWidget#chatAssistantWidget,
+    QWidget#chatMessageContainer {{
+        color: {TEXT_PRIMARY};
+        background-color: {APP_BACKGROUND};
+        font-family: "Segoe UI";
+    }}
+    QFrame#chatHeader {{
+        background-color: {SURFACE};
+        border: none;
+        border-bottom: 1px solid {BORDER};
+    }}
+    QLabel#chatTitleLabel {{
+        color: {TEXT_PRIMARY};
+        font-size: 16px;
+        font-weight: 700;
+    }}
+    QLabel#chatSubtitleLabel,
+    QLabel#chatSafetyLabel,
+    QLabel#chatSourceLabel {{
+        color: {TEXT_SECONDARY};
+        font-size: 11px;
+    }}
+    QLabel#chatOfflineBadge {{
+        color: {SUCCESS};
+        background-color: {SUCCESS_SUBTLE};
+        border: 1px solid {SUCCESS};
+        border-radius: 8px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 600;
+    }}
+    QScrollArea#chatScrollArea {{
+        background-color: {APP_BACKGROUND};
+        border: none;
+    }}
+    QFrame#chatUserBubble {{
+        color: {TEXT_PRIMARY};
+        background-color: {PRIMARY_SUBTLE};
+        border: 1px solid {PRIMARY};
+        border-radius: 12px;
+    }}
+    QFrame#chatAssistantBubble {{
+        color: {TEXT_PRIMARY};
+        background-color: {SURFACE};
+        border: 1px solid {BORDER};
+        border-radius: 12px;
+    }}
+    QLabel#chatMessageText,
+    QLabel#chatWelcomeLabel {{
+        color: {TEXT_PRIMARY};
+        font-size: 13px;
+    }}
+    QFrame#chatComposer {{
+        background-color: {SURFACE};
+        border: none;
+        border-top: 1px solid {BORDER};
+    }}
+    QPlainTextEdit#chatInput {{
+        color: {TEXT_PRIMARY};
+        background-color: {SIDEBAR_BACKGROUND};
+        border: 1px solid {BORDER};
+        border-radius: 9px;
+        padding: 7px 9px;
+        selection-background-color: {PRIMARY_HOVER};
+    }}
+    QPlainTextEdit#chatInput:focus {{ border-color: {PRIMARY}; }}
+    QPushButton {{
+        color: {TEXT_PRIMARY};
+        background-color: {SURFACE};
+        border: 1px solid {BORDER};
+        border-radius: 8px;
+        min-height: 32px;
+        padding: 0 10px;
+    }}
+    QPushButton:hover {{ background-color: {SURFACE_HOVER}; }}
+    QPushButton:focus {{ border-color: {PRIMARY}; }}
+    QPushButton:disabled {{ color: {TEXT_MUTED}; background-color: {SIDEBAR_BACKGROUND}; }}
+    QPushButton[variant="primary"] {{
+        color: {SIDEBAR_BACKGROUND};
+        background-color: {PRIMARY};
+        border-color: {PRIMARY};
+        font-weight: 700;
+    }}
+    QPushButton[quickAction="true"] {{
+        color: {PRIMARY};
+        background-color: {SURFACE};
+        border-color: {BORDER};
+        text-align: left;
+    }}
+    QScrollBar:vertical {{
+        background: {APP_BACKGROUND};
+        width: 10px;
+        margin: 0;
+    }}
+    QScrollBar::handle:vertical {{
+        background: {BORDER};
+        border-radius: 5px;
+        min-height: 24px;
+    }}
+    QScrollBar::add-line:vertical,
+    QScrollBar::sub-line:vertical {{ height: 0; }}
+    """
+
+
 def status_badge_colors(status: object) -> tuple[str, str]:
     """Return accessible foreground/background colors for a saved status."""
 

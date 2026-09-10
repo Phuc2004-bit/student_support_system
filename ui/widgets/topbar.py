@@ -26,6 +26,7 @@ class Topbar(QFrame):
     """
 
     logout_requested = Signal()
+    assistant_requested = Signal()
 
     HEIGHT = 72
 
@@ -152,11 +153,20 @@ class Topbar(QFrame):
             self.logout_requested.emit
         )
 
+        self.assistant_button = QPushButton("Trợ lý", self)
+        self.assistant_button.setObjectName("assistantButton")
+        self.assistant_button.setProperty("variant", "secondary")
+        self.assistant_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.assistant_button.setToolTip("Mở Trợ lý hệ thống")
+        self.assistant_button.setVisible(False)
+        self.assistant_button.clicked.connect(self.assistant_requested.emit)
+
         layout.addWidget(title_container)
         layout.addStretch(1)
         layout.addWidget(
             user_container
         )
+        layout.addWidget(self.assistant_button)
         layout.addWidget(
             self.logout_button
         )
@@ -164,3 +174,6 @@ class Topbar(QFrame):
     def set_page_title(self, title: str, subtitle: str | None = None) -> None:
         self.app_title_label.setText(title)
         self.subtitle_label.setText(subtitle or "Không gian quản lý tập trung")
+
+    def set_assistant_visible(self, visible: bool) -> None:
+        self.assistant_button.setVisible(bool(visible))
