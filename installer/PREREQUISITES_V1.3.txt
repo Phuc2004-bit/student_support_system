@@ -1,0 +1,22 @@
+STUDENT SUPPORT SYSTEM 1.3 - YEU CAU TRIEN KHAI
+================================================
+
+- Windows 64-bit.
+- Microsoft ODBC Driver 18 for SQL Server.
+- Microsoft SQL Server hoac SQL Server Express da duoc cai dat rieng.
+- Database schema da duoc trien khai truoc khi su dung ung dung.
+- Windows Authentication / Trusted Connection va quyen truy cap database.
+
+Installer khong tai hoac cai dat SQL Server, ODBC Driver hay database schema.
+Installer khong ket noi database va khong tao tai khoan mac dinh.
+
+Sau khi cai dat, sao chep .env.example thanh .env trong thu muc ung dung va
+dien thong tin moi truong trien khai. Khong chia se .env hoac credential.
+
+Chat Assistant mac dinh bi tat va dung OfflineProvider. Gemini la tuy chon,
+khong co API key nao duoc kem theo installer.
+
+Tai khoan ADMIN dau tien phai duoc tao boi nguoi trien khai tu source checkout
+duoc bao ve bang scripts/create_initial_admin.py theo HUONG_DAN.txt.
+
+Ban cai hien chua duoc ky so; Windows SmartScreen co the hien canh bao.

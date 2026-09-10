@@ -10,7 +10,7 @@ $InstallerScript = Join-Path $ProjectRoot "installer\StudentSupportSystem.iss"
 $PackageDir = Join-Path $ProjectRoot "dist\StudentSupportSystem"
 $Executable = Join-Path $PackageDir "StudentSupportSystem.exe"
 $Icon = Join-Path $ProjectRoot "assets\app_icon.ico"
-$Output = Join-Path $ProjectRoot "installer\output\StudentSupportSystem-1.2.0-Setup.exe"
+$Output = Join-Path $ProjectRoot "installer\output\StudentSupportSystem-1.3.0-Setup.exe"
 
 function Resolve-IsccCompiler {
     param([string]$RequestedPath)
@@ -48,8 +48,8 @@ foreach ($RequiredPath in @(
     (Join-Path $PackageDir "_internal"),
     (Join-Path $PackageDir ".env.example"),
     (Join-Path $PackageDir "HUONG_DAN.txt"),
-    (Join-Path $PackageDir "RELEASE_NOTES_V1.2.0.md"),
-    (Join-Path $PackageDir "RELEASE_CHECKLIST_V1.2.0.md")
+    (Join-Path $PackageDir "RELEASE_NOTES_V1.3.0.md"),
+    (Join-Path $PackageDir "RELEASE_CHECKLIST_V1.3.0.md")
 )) {
     if (-not (Test-Path -LiteralPath $RequiredPath)) {
         throw "Required ONEDIR content is missing: $RequiredPath"

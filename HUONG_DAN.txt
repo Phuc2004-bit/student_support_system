@@ -1,4 +1,4 @@
-STUDENT SUPPORT SYSTEM V1.2
+STUDENT SUPPORT SYSTEM V1.3
 ===========================
 
 YÊU CẦU HỆ THỐNG
@@ -48,6 +48,16 @@ khẩu bằng chế độ ẩn và xác minh đăng nhập sau khi cập nhật.
 bản cài nhị phân và không phải công cụ tự phục vụ cho người dùng cuối. Không thể
 đọc lại mật khẩu gốc từ bcrypt hash; chỉ có thể xác minh hoặc đặt mật khẩu mới.
 Không ghi mật khẩu, password hash hoặc credential vào tài liệu và nhật ký.
+
+TRỢ LÝ HỆ THỐNG
+
+Trợ lý mặc định có thể bị tắt. Khi được người triển khai bật, trợ lý chỉ dùng để
+hỏi cách sử dụng ứng dụng. Chế độ Offline không cần Gemini API key; chế độ Gemini
+cần API key do người triển khai tự cấu hình bên ngoài source control.
+
+Trợ lý không truy cập hoặc thay đổi dữ liệu, không chạy SQL và không phải chatbot
+đa mục đích. Không nhập mật khẩu, credential, thông tin nhạy cảm hoặc dữ liệu học
+sinh vào hội thoại.
 
 NHẬT KÝ
 

@@ -24,11 +24,11 @@ def test_installer_has_no_absolute_developer_path():
     assert not re.search(r"[A-Za-z]:[\\/]", read(ISS))
 
 
-def test_installer_metadata_and_output_name_are_v12():
+def test_installer_metadata_and_output_name_are_v13():
     source = read(ISS)
     assert '#define MyAppName "Student Support System"' in source
-    assert '#define MyAppVersion "1.2.0"' in source
-    assert "OutputBaseFilename=StudentSupportSystem-1.2.0-Setup" in source
+    assert '#define MyAppVersion "1.3.0"' in source
+    assert "OutputBaseFilename=StudentSupportSystem-1.3.0-Setup" in source
 
 
 def test_installer_uses_the_existing_onedir_package_only():
@@ -118,17 +118,17 @@ def test_build_script_validates_forbidden_content_and_reports_output():
     source = read(BUILD_SCRIPT)
     for forbidden in ("tests", ".git", ".venv", "__pycache__", "logs", ".xlsx", ".log"):
         assert f'"{forbidden}"' in source
-    assert "StudentSupportSystem-1.2.0-Setup.exe" in source
+    assert "StudentSupportSystem-1.3.0-Setup.exe" in source
     assert 'Write-Host "Installer:' in source
     assert 'Write-Host "Size:' in source
 
 
 def test_version_is_synchronized_without_changing_product_identity():
-    assert "APP_VERSION=1.2.0" in read(ROOT / ".env.example")
-    assert '"1.2.0"' in read(ROOT / "config/settings.py")
+    assert "APP_VERSION=1.3.0" in read(ROOT / ".env.example")
+    assert '"1.3.0"' in read(ROOT / "config/settings.py")
     metadata = read(ROOT / "build_config/windows_version_info.txt")
-    assert "filevers=(1, 2, 0, 0)" in metadata
-    assert "prodvers=(1, 2, 0, 0)" in metadata
+    assert "filevers=(1, 3, 0, 0)" in metadata
+    assert "prodvers=(1, 3, 0, 0)" in metadata
     assert "StringStruct('ProductName', 'Student Support System')" in metadata
     assert "StringStruct('OriginalFilename', 'StudentSupportSystem.exe')" in metadata
 
@@ -136,8 +136,8 @@ def test_version_is_synchronized_without_changing_product_identity():
 def test_prerequisite_and_initial_admin_policy_are_documented_safely():
     text = "\n".join(
         (
-            read(ROOT / "installer/PREREQUISITES_V1.2.txt"),
-            read(ROOT / "RELEASE_NOTES_V1.2.0.md"),
+            read(ROOT / "installer/PREREQUISITES_V1.3.txt"),
+            read(ROOT / "RELEASE_NOTES_V1.3.0.md"),
             read(ROOT / "HUONG_DAN.txt"),
         )
     ).casefold()
@@ -150,8 +150,8 @@ def test_installer_inputs_contain_no_hard_coded_credentials():
     source = "\n".join(
         read(path)
         for path in (
-            ISS, BUILD_SCRIPT, ROOT / "installer/PREREQUISITES_V1.2.txt",
-            ROOT / "RELEASE_NOTES_V1.2.0.md",
+            ISS, BUILD_SCRIPT, ROOT / "installer/PREREQUISITES_V1.3.txt",
+            ROOT / "RELEASE_NOTES_V1.3.0.md",
         )
     ).casefold()
     assert "password_hash" not in source
@@ -159,10 +159,10 @@ def test_installer_inputs_contain_no_hard_coded_credentials():
     assert not re.search(r"password\s*=", source)
 
 
-def test_v11_release_artifacts_are_not_targeted_by_v12_scripts():
+def test_v12_release_artifacts_are_not_targeted_by_v13_scripts():
     installer = read(ISS)
     builder = read(BUILD_SCRIPT)
     finalizer = read(ROOT / "scripts/finalize_release.ps1")
-    assert "1.1.0" not in installer + builder
-    assert "StudentSupportSystem-1.2.0-win64.zip" in finalizer
-    assert "StudentSupportSystem-1.1.0-win64.zip" not in finalizer
+    assert "1.2.0" not in installer + builder
+    assert "StudentSupportSystem-1.3.0-win64.zip" in finalizer
+    assert "StudentSupportSystem-1.2.0-win64.zip" not in finalizer

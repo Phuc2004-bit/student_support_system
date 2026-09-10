@@ -7,12 +7,12 @@ $ProjectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "..")).Path
 $DistDir = [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot "dist"))
 $PackageDir = [System.IO.Path]::GetFullPath((Join-Path $DistDir "StudentSupportSystem"))
 $ReleaseDir = [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot "release"))
-$ZipName = "StudentSupportSystem-1.2.0-win64.zip"
+$ZipName = "StudentSupportSystem-1.3.0-win64.zip"
 $ZipPath = Join-Path $ReleaseDir $ZipName
 $ChecksumPath = "$ZipPath.sha256"
 $Executable = Join-Path $PackageDir "StudentSupportSystem.exe"
-$ReleaseNotes = Join-Path $ProjectRoot "RELEASE_NOTES_V1.2.0.md"
-$ReleaseChecklist = Join-Path $ProjectRoot "RELEASE_CHECKLIST_V1.2.0.md"
+$ReleaseNotes = Join-Path $ProjectRoot "RELEASE_NOTES_V1.3.0.md"
+$ReleaseChecklist = Join-Path $ProjectRoot "RELEASE_CHECKLIST_V1.3.0.md"
 
 function Assert-ProjectChildPath {
     param([Parameter(Mandatory = $true)][string]$Path)

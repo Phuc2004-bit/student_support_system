@@ -54,7 +54,7 @@ def test_windows_version_metadata_uses_release_name_without_fake_company():
 
     assert "Student Support System" in metadata
     assert "StudentSupportSystem.exe" in metadata
-    assert "1.2.0" in metadata
+    assert "1.3.0" in metadata
     assert "StringStruct('CompanyName', '')" in metadata
 
 
@@ -83,7 +83,7 @@ def test_build_script_copies_only_environment_template_and_guide():
 def test_release_guide_documents_external_runtime_prerequisites():
     guide = read("HUONG_DAN.txt")
 
-    assert "STUDENT SUPPORT SYSTEM V1.2" in guide
+    assert "STUDENT SUPPORT SYSTEM V1.3" in guide
     assert "ODBC Driver 18 for SQL Server" in guide
     assert "SQL Server" in guide
     assert "Windows user" in guide
